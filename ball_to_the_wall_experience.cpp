@@ -1,3 +1,7 @@
+/// <summary>
+/// Prototype of game to be run with custom SDL2 library. Code from custom library is hidden / cannot see what SDL2 components are being used.\
+/// Bug could possibly be that the spirtes are drown from weird coordinates. 
+/// </summary>
 #include <iostream>
 #include <filesystem>
 
@@ -26,6 +30,7 @@ struct WindowSize
 	mutable bool fullscreen = false;
 };
 
+// These are going to be shared with dll or something?
 extern WindowSize *userWindowSize = new WindowSize();
 extern int __argc;
 extern char **__argv;
@@ -38,6 +43,8 @@ class MyFramework : public Framework
 {
 
 public:
+	FRKey key_api;
+	FRMouseButton mouse_api;
 	virtual void PreInit(int &width, int &height, bool &fullscreen)
 	{
 		width = userWindowSize->width;
@@ -47,9 +54,9 @@ public:
 
 	virtual bool Init()
 	{
-		getScreenSize(resolution_h, resolution_w);
-		resolution_param_h = resolution_h / static_cast<float>(800);
-		resolution_param_w = resolution_w / static_cast<float>(600);
+		getScreenSize(resolution_w, resolution_h);
+		resolution_param_w = resolution_w / static_cast<float>(800);
+		resolution_param_h = resolution_h / static_cast<float>(600);
 		cout << "Current resolution is: " << resolution_h << "x" << resolution_w << endl;
 		cout << "Resolution scale is: " << resolution_param_h << "x" << resolution_param_w << endl;
 		cout << "Ticks from library initialization" << getTickCount() << endl;
@@ -62,34 +69,67 @@ public:
 		cout << "Close function called" << endl;
 	}
 
-	//Tick dzia³a w ka¿dej chwili, wiêc screen jest renderowany w ka¿dej chwili
+	//Tick each moment - need to re-draw everything per frame
 	virtual bool Tick()
 	{	
 		//Adding scale for different resolutions
-		static bool _what_time = false;
-		static int scaled_size_h = 384 * resolution_param_h * 0.25;
-		static int scaled_size_w = 128 * resolution_param_w * 0.25;
+		static bool _init_arena = false;
+		static int size_h, size_w;
 		static Sprite* test_block = createSprite(".\\data\\01-Breakout-Tiles.png");
-		if (_what_time == false)
+		getSpriteSize(test_block, size_w, size_h);
+		static int scaled_size_h = size_h / static_cast <float>(4) * resolution_param_h;
+		static int scaled_size_w = size_w / static_cast <float>(4) * resolution_param_w;
+		if (_init_arena == false)
 		{
 			cout << "Scaled the size to " << scaled_size_h << " and " << scaled_size_w << endl;
-			_what_time = true;
+			_init_arena = true;
 		};
-		setSpriteSize(test_block, scaled_size_h, scaled_size_w);
-		for (	int y = 0 ; y <= scaled_size_h; y += scaled_size_h / 4)
+		setSpriteSize(test_block, scaled_size_w, scaled_size_h);
+		for (int x = 0; x <= scaled_size_w*8; x += scaled_size_w)
 		{
-			for (int x = 0; x <= scaled_size_w*10; x += scaled_size_w *4)
+			for (int y = 0 ; y <= scaled_size_h*5; y += scaled_size_h )
 			{
 				drawSprite(test_block, x , y);
+				 
 			}
+
 		}
 		
+		static Sprite* test_mouse_block = createSprite(".\\data\\49-Breakout-Tiles.png");
+		static int size_mouse_h, size_mouse_w;
+		static bool _init_time_mouse = false;
+		getSpriteSize(test_mouse_block, size_mouse_w, size_mouse_h);
+		static int scaled_size_mouse_h = size_mouse_h / static_cast <float>(4) * resolution_param_h;
+		static int scaled_size_mosue_w = size_mouse_w / static_cast <float>(4) * resolution_param_w;
+		if (_init_time_mouse == false)
+		{
+			_init_time_mouse = true;
+			setSpriteSize(test_mouse_block, scaled_size_w, scaled_size_h);
+			cout << "Initalized mouse at "<< resolution_w / 2 << " and " << resolution_h / 2 << endl;
+		};
+		
+		drawSprite(test_mouse_block, resolution_w /2 - (size_mouse_w/2), resolution_h - 50);
 		return false;
 	}
 
 	virtual void onMouseMove(int x, int y, int xrelative, int yrelative)
 	{
-		//cout << "Mouse moved" << endl;
+		//static Sprite* test_mouse_block = createSprite(".\\data\\49-Breakout-Tiles.png");
+		//static int size_mouse_h, size_mouse_w;
+		//static bool _what_time = false;
+		//getSpriteSize(test_mouse_block, size_mouse_w, size_mouse_h);
+		//static int scaled_size_h = size_mouse_h / static_cast <float>(4) * resolution_param_h;
+		//static int scaled_size_w = size_mouse_w / static_cast <float>(4) * resolution_param_w;
+		//if (_what_time == false)
+		//{
+		//	cout << "Scaled the size to " << scaled_size_h << " and " << scaled_size_w << endl;
+		//	_what_time = true;
+		//};
+		//setSpriteSize(test_mouse_block, scaled_size_w, scaled_size_h);
+		//drawSprite(test_mouse_block, 50, 5);
+		cout << "Mouse moved at x,y : " << x << "," << y << endl;
+		cout << "Relative position : " << xrelative << "," << yrelative << endl;
+
 		showCursor(true);
 	}
 

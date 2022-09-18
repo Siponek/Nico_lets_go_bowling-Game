@@ -16,6 +16,11 @@ using std::string;
 using std::vector;
 using std::for_each;
 //using namespace std::filesystem;
+struct Player
+{
+	int x_player, x_max_player;
+	int y_player, y_max_player;
+};
 
 struct Ball
 {
@@ -46,21 +51,22 @@ struct colored_block
 class State
 {
 public:
-	int x_player;
-	int y_player;
-	Ball ball_player;
+	int x_player, x_max_player;
+	int y_player, y_max_player;
+	Ball ball_object;
 	vector<colored_block> list_of_blocks;
 	State()
 	{
 		x_player = 0;
 		y_player = 0;
-		ball_player.x = 0;
-		ball_player.y = 0;
-		ball_player.radius = 0;
-		ball_player.speed = 0;
-		ball_player.x_direction = 0;
-		ball_player.y_direction = 0;
+		ball_object.x = 0;
+		ball_object.y = 0;
+		ball_object.radius = 0;
+		ball_object.speed = 0;
+		ball_object.x_direction = 0;
+		ball_object.y_direction = 0;
 	}
+	
 };
 
 int __argc;
@@ -155,7 +161,9 @@ public:
 
 		state_of_game.x_player = resolution_w / 2 - (size_player_w / 4);
 		state_of_game.y_player = resolution_h - 50;
-		state_of_game.ball_player.speed = 1;
+		state_of_game.x_max_player = state_of_game.x_player + scaled_size_player_w;
+		state_of_game.y_max_player = state_of_game.y_player + scaled_size_player_h;
+		state_of_game.ball_object.speed = 1;
 		setSpriteSize(player_sprite, scaled_size_player_w, scaled_size_player_h);
 		
 		cout << "Current resolution is: " << resolution_h << "x" << resolution_w << endl;
@@ -187,16 +195,25 @@ public:
 		//Problem with ball sprite - speed is connected to ticks == FPS
 
 
-		drawSprite(ball_sprite, state_of_game.ball_player.x , state_of_game.ball_player.y);
+		drawSprite(ball_sprite, state_of_game.ball_object.x , state_of_game.ball_object.y);
 		
 			
 
 		///Manage keys pressed-released
-		drawSprite(player_sprite, state_of_game.x_player - (scaled_size_player_w /2), state_of_game.y_player);
+		//drawSprite(player_sprite, state_of_game.x_player - (scaled_size_player_w /2), state_of_game.y_player);
+		drawSprite(player_sprite, state_of_game.x_player, state_of_game.y_player);
+		
 		if (_init_time_key_left)
+		{
 			state_of_game.x_player -= 1;
+			state_of_game.x_max_player -= 1;
+		}
 		if (_init_time_key_right)
+		{
 			state_of_game.x_player += 1;
+			state_of_game.x_max_player += 1;
+
+		}
 		return false;
 	}
 
@@ -205,22 +222,22 @@ public:
 		//cout << "Mouse moved at x,y : " << x << "," << y << endl;
 		if(_init_time_mouse == true)
 		{
-			state_of_game.ball_player.x = x - (scaled_size_ball_w / 2);
-			state_of_game.ball_player.y = y - (scaled_size_ball_h / 2);
-			state_of_game.ball_player.x_direction = xrelative;
+			state_of_game.ball_object.x = x - (scaled_size_ball_w / 2);
+			state_of_game.ball_object.y = y - (scaled_size_ball_h / 2);
+			state_of_game.ball_object.x_direction = xrelative;
 			//Y direction is inverted in window
-			state_of_game.ball_player.y_direction = -abs(yrelative);
+			state_of_game.ball_object.y_direction = -abs(yrelative);
 			//checks for the first time mouse is moved to give smallest speed
-			if (state_of_game.ball_player.x_direction > 1)
-				state_of_game.ball_player.x_direction = 1;
-			else if (state_of_game.ball_player.x_direction < -1)
-				state_of_game.ball_player.x_direction = -1;
+			if (state_of_game.ball_object.x_direction > 1)
+				state_of_game.ball_object.x_direction = 1;
+			else if (state_of_game.ball_object.x_direction < -1)
+				state_of_game.ball_object.x_direction = -1;
 			//This doesn't need to be checked on positive, because of {-abs()}
-			if (state_of_game.ball_player.y_direction < -1)
-				state_of_game.ball_player.y_direction = -1;
+			if (state_of_game.ball_object.y_direction < -1)
+				state_of_game.ball_object.y_direction = -1;
 			
 		cout << "Direction relative XY : " << xrelative << "," << yrelative << endl;
-		cout << "Direction XY : " << state_of_game.ball_player.x_direction << "," << state_of_game.ball_player.y_direction << endl;
+		cout << "Direction XY : " << state_of_game.ball_object.x_direction << "," << state_of_game.ball_object.y_direction << endl;
 		_init_time_mouse = false;
 		}
 		
@@ -362,31 +379,42 @@ void drawSpriteStruct(colored_block tmp_struct)
 /// Funtion to manage ball collision with screen borders
 void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _scaled_size_ball_h)
 {
-	//int temp = *_scaled_size_ball_w;
-	if ((_state_of_game->ball_player.x >= resolution_w - *_scaled_size_ball_w) or (_state_of_game->ball_player.x <= 0))
+	/// Ball collision with screen borders
+	if ((_state_of_game->ball_object.x >= resolution_w - *_scaled_size_ball_w) or (_state_of_game->ball_object.x <= 0))
 	{
-		//cout << "_state_of_game.ball_player.x " << _state_of_game->ball_player.x << (_state_of_game->ball_player.x >= resolution_w - *_scaled_size_ball_w) << endl;
-		_state_of_game->ball_player.x_direction *= -1;
+		//cout << "_state_of_game.ball_object.x " << _state_of_game->ball_object.x << (_state_of_game->ball_object.x >= resolution_w - *_scaled_size_ball_w) << endl;
+		_state_of_game->ball_object.x_direction *= -1;
 	}
-	if ((_state_of_game->ball_player.y >= resolution_h - *_scaled_size_ball_h) or (_state_of_game->ball_player.y <= 0))
+	if ((_state_of_game->ball_object.y >= resolution_h - *_scaled_size_ball_h) or (_state_of_game->ball_object.y <= 0))
 	{
-		_state_of_game->ball_player.y_direction *= -1;
+		_state_of_game->ball_object.y_direction *= -1;
 	}
-	_state_of_game->ball_player.x += (_state_of_game->ball_player.x_direction * _state_of_game->ball_player.speed);
-	_state_of_game->ball_player.y += (_state_of_game->ball_player.y_direction * _state_of_game->ball_player.speed);
+	_state_of_game->ball_object.x += (_state_of_game->ball_object.x_direction * _state_of_game->ball_object.speed);
+	_state_of_game->ball_object.y += (_state_of_game->ball_object.y_direction * _state_of_game->ball_object.speed);
 
+	/// Ball collision with blocks
 	for (auto temp_struct_var : _state_of_game->list_of_blocks)
 	{
-		if (_state_of_game->ball_player.x >= temp_struct_var.x and _state_of_game->ball_player.x <= temp_struct_var.x_max)
+		if (_state_of_game->ball_object.x >= temp_struct_var.x and _state_of_game->ball_object.x <= temp_struct_var.x_max)
 		{
-			_state_of_game->ball_player.x_direction *= -1;
+			_state_of_game->ball_object.x_direction *= -1;
 		}
-		if (_state_of_game->ball_player.y >= temp_struct_var.y and _state_of_game->ball_player.y <= temp_struct_var.y_max)
+		if (_state_of_game->ball_object.y >= temp_struct_var.y and _state_of_game->ball_object.y <= temp_struct_var.y_max)
 		{
-			_state_of_game->ball_player.y_direction *= -1;
+			_state_of_game->ball_object.y_direction *= -1;
 		}
 	}
 	
+	/// Ball colision with player
+	if (_state_of_game->ball_object.x >=_state_of_game->x_player and _state_of_game->ball_object.x <= _state_of_game->x_max_player)
+	{
+		if (_state_of_game->ball_object.y >= _state_of_game->y_player and _state_of_game->ball_object.y <= _state_of_game->y_max_player)
+		{
+			cout<< "That's a colision! XY ball " << _state_of_game->ball_object.x << " " << _state_of_game->ball_object.y << "XY player " << _state_of_game->x_player  << "\\" << _state_of_game->x_max_player << endl;
+			_state_of_game->ball_object.y_direction *= -1;
+		}
+	}
+
 }
 
 int main(int argc, char *argv[])

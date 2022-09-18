@@ -15,7 +15,7 @@ using std::endl;
 using std::string;
 using std::vector;
 using std::for_each;
-using namespace std::filesystem;
+//using namespace std::filesystem;
 
 struct Ball
 {
@@ -188,16 +188,25 @@ public:
 	virtual void onMouseMove(int x, int y, int xrelative, int yrelative)
 	{
 		//cout << "Mouse moved at x,y : " << x << "," << y << endl;
-		cout << "Relative position : " << xrelative << "," << yrelative << endl;
 		if(_init_time_mouse == true)
 		{
 			state_of_game.ball_player.x = x - (scaled_size_ball_w / 2);
 			state_of_game.ball_player.y = y - (scaled_size_ball_h / 2);
 			state_of_game.ball_player.x_direction = xrelative;
+			//Y direction is inverted in window
 			state_of_game.ball_player.y_direction = -abs(yrelative);
-
 			
-			_init_time_mouse = false;
+			//checks for the first time mouse is moved to give smallest speed
+			if (state_of_game.ball_player.x_direction > 1)
+				state_of_game.ball_player.x_direction = 1;
+			else if (state_of_game.ball_player.x_direction < -1)
+				state_of_game.ball_player.x_direction = -1;
+			if (state_of_game.ball_player.y_direction < -1)
+				state_of_game.ball_player.y_direction = -1;
+			
+		cout << "Direction relative XY : " << xrelative << "," << yrelative << endl;
+		cout << "Direction XY : " << state_of_game.ball_player.x_direction << "," << state_of_game.ball_player.y_direction << endl;
+		_init_time_mouse = false;
 		}
 		
 	}

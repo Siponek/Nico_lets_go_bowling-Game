@@ -50,7 +50,6 @@ public:
 	int y_player;
 	Ball ball_player;
 	vector<colored_block> list_of_blocks;
-	
 	State()
 	{
 		x_player = 0;
@@ -71,7 +70,7 @@ static float resolution_param_h, resolution_param_w;
 static int resolution_h, resolution_w;
 extern WindowSize* userWindowSize = new WindowSize();
 
-void millisecondWait(unsigned ms);
+//void millisecondWait(unsigned ms);
 // Function for managing CLI intput for window resolution
 void manageCLIwindow();
 void drawSpriteStruct(colored_block tmp_struct);
@@ -95,31 +94,36 @@ public:
 	int size_ball_h, size_ball_w;
 	int scaled_size_ball_h, scaled_size_ball_w;
 	bool _init_time_mouse = false;
-	bool mouse_locked = false;
+	bool _init_time_key_left = false;
+	bool _init_time_key_right = false;
 	
+	/// <summary>
+	/// Nothing can be called here. All initialization should be done in Init() method.
+	/// </summary>
+	/// <returns> nothing </returns>
 	virtual void PreInit(int &width, int &height, bool &fullscreen)
 	{
+		cout << "Pre-init called" << endl;
 		width = userWindowSize->width;
 		height = userWindowSize->height;
 		fullscreen = userWindowSize->fullscreen;
 		///By default I recognise the resolution as 800x600, so I scale the sprites form that value
-		resolution_param_w = resolution_w / static_cast<float>(800);
-		resolution_param_h = resolution_h / static_cast<float>(600);
 	}
 
 	virtual bool Init()
 	{
+		cout << "Init called" << endl;
 		enemy_block_1 = createSprite(".\\data\\01-Breakout-Tiles.png");
 		player_sprite = createSprite(".\\data\\49-Breakout-Tiles.png");
 		ball_sprite = createSprite(".\\data\\62-Breakout-Tiles.png");
-		
 		getSpriteSize(enemy_block_1, size_for_blocks_w, size_for_blocks_h);
 		getSpriteSize(player_sprite, size_player_w, size_player_h);
 		getSpriteSize(ball_sprite, size_ball_w, size_ball_h);
-		
 		getScreenSize(resolution_w, resolution_h);
 
 		//This doesn't have to be recalculated each time - const?
+		resolution_param_w = resolution_w / static_cast<float>(800);
+		resolution_param_h = resolution_h / static_cast<float>(600);
 		scaled_size_for_blocks_h = size_for_blocks_h / static_cast <float>(4) * resolution_param_h;
 		scaled_size_for_blocks_w = size_for_blocks_w / static_cast <float>(4) * resolution_param_w;
 		for (int x = 0; x <= 8; x ++)
@@ -137,23 +141,22 @@ public:
 				temp_struct.width = x + scaled_size_for_blocks_w;
 				temp_struct.height = y + scaled_size_for_blocks_h;
 				temp_struct.x_max = temp_struct.x + temp_struct.width;
-				temp_struct.height = temp_struct.y + temp_struct.height;
+				temp_struct.y_max = temp_struct.y + temp_struct.height;
 				state_of_game.list_of_blocks.push_back(temp_struct);
 			}
 		}
+		
 		
 		scaled_size_player_h = size_for_blocks_h / static_cast <float>(4) * resolution_param_h;
 		scaled_size_player_w = size_for_blocks_w / static_cast <float>(4) * resolution_param_w;
 		scaled_size_ball_h = size_ball_h / static_cast <float>(4) * resolution_param_h;
 		scaled_size_ball_w = size_ball_w / static_cast <float>(4) * resolution_param_w;
-
-		//setSpriteSize(enemy_block_1, scaled_size_for_blocks_w, scaled_size_for_blocks_h);
-		setSpriteSize(player_sprite, scaled_size_player_w, scaled_size_player_h);
 		setSpriteSize(ball_sprite, scaled_size_ball_w, scaled_size_ball_h);
 
-		//state_of_game.y_player = resolution_w / 2 - (size_player_w / 2);
+		state_of_game.x_player = resolution_w / 2 - (size_player_w / 4);
 		state_of_game.y_player = resolution_h - 50;
 		state_of_game.ball_player.speed = 1;
+		setSpriteSize(player_sprite, scaled_size_player_w, scaled_size_player_h);
 		
 		cout << "Current resolution is: " << resolution_h << "x" << resolution_w << endl;
 		cout << "Resolution scale is: " << resolution_param_h << "x" << resolution_param_w << endl;
@@ -176,23 +179,30 @@ public:
 	virtual bool Tick()
 	{
 		//for_each(state_of_game.list_of_blocks.begin(), state_of_game.list_of_blocks.end(), drawSpriteStruct(state_of_game.list_of_blocks));
-		for (auto temp_struct_from_vector : state_of_game.list_of_blocks)
-			drawSpriteStruct(temp_struct_from_vector);
+		for (auto temp_struct_var : state_of_game.list_of_blocks)
+			drawSpriteStruct(temp_struct_var);
 		//Drawing player sprite
 		manageBallCollision(&state_of_game, &scaled_size_ball_w, &scaled_size_ball_h);
-		drawSprite(player_sprite, state_of_game.x_player - (scaled_size_player_w /2), state_of_game.y_player);
 		//Drawing ball sprite
 		//Problem with ball sprite - speed is connected to ticks == FPS
 
 
 		drawSprite(ball_sprite, state_of_game.ball_player.x , state_of_game.ball_player.y);
+		
+			
 
+		///Manage keys pressed-released
+		drawSprite(player_sprite, state_of_game.x_player - (scaled_size_player_w /2), state_of_game.y_player);
+		if (_init_time_key_left)
+			state_of_game.x_player -= 1;
+		if (_init_time_key_right)
+			state_of_game.x_player += 1;
 		return false;
 	}
 
 	virtual void onMouseMove(int x, int y, int xrelative, int yrelative)
 	{
-		cout << "Mouse moved at x,y : " << x << "," << y << endl;
+		//cout << "Mouse moved at x,y : " << x << "," << y << endl;
 		if(_init_time_mouse == true)
 		{
 			state_of_game.ball_player.x = x - (scaled_size_ball_w / 2);
@@ -200,12 +210,12 @@ public:
 			state_of_game.ball_player.x_direction = xrelative;
 			//Y direction is inverted in window
 			state_of_game.ball_player.y_direction = -abs(yrelative);
-			
 			//checks for the first time mouse is moved to give smallest speed
 			if (state_of_game.ball_player.x_direction > 1)
 				state_of_game.ball_player.x_direction = 1;
 			else if (state_of_game.ball_player.x_direction < -1)
 				state_of_game.ball_player.x_direction = -1;
+			//This doesn't need to be checked on positive, because of {-abs()}
 			if (state_of_game.ball_player.y_direction < -1)
 				state_of_game.ball_player.y_direction = -1;
 			
@@ -230,19 +240,40 @@ public:
 		cout << "Key pressed: "<< int(k) << endl;
 		if (int(k) == 0)
 		{
-			state_of_game.x_player += 10;
+			_init_time_key_right = true;
 		}
 		else if (int(k) == 1)
 		{
-			state_of_game.x_player -= 10;
+			_init_time_key_left = true;
 		}
 		
 	}
 
 	virtual void onKeyReleased(FRKey k)
 	{
+		cout << "Key released: " << int(k) << endl;
+		//if (int(k) == 0)
+		//{
+		//	{
+		//		state_of_game.x_player += 10;
+		//	}
+		//}
+		//else if (int(k) == 1)
+		//{
+		//	{
+		//		state_of_game.x_player -= 10;
+		//	}
+		//}
 		
-		cout << "Key released" << endl;
+		if (int(k) == 0)
+		{
+			_init_time_key_right = false;
+		}
+		else if (int(k) == 1)
+		{
+			_init_time_key_left = false;
+		}
+
 	}
 
 	virtual const char *GetTitle() override
@@ -252,11 +283,11 @@ public:
 	}
 };
 
- void millisecondWait(unsigned ms)
- {
- 	std::chrono::milliseconds dura(ms);
- 	std::this_thread::sleep_for(dura);
- }
+ //void millisecondWait(unsigned ms)
+ //{
+ //	std::chrono::milliseconds dura(ms);
+ //	std::this_thread::sleep_for(dura);
+ //}
  // Function for managing CLI intput for window resolution
 void manageCLIwindow()
 {
@@ -316,6 +347,12 @@ void manageCLIwindow()
 	};
 }
 
+/// <summary>
+/// Funtion to take a struct with sprite and draw it. Used for auto "for c: vector" loop 
+/// </summary>
+/// <param name="_state_of_game"></param>
+/// <param name="_scaled_size_ball_w"></param>
+/// <param name="_scaled_size_ball_h"></param>
 void drawSpriteStruct(colored_block tmp_struct)
 {
 	drawSprite(tmp_struct.block_sprite, tmp_struct.x, tmp_struct.y);
@@ -337,6 +374,19 @@ void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _
 	}
 	_state_of_game->ball_player.x += (_state_of_game->ball_player.x_direction * _state_of_game->ball_player.speed);
 	_state_of_game->ball_player.y += (_state_of_game->ball_player.y_direction * _state_of_game->ball_player.speed);
+
+	for (auto temp_struct_var : _state_of_game->list_of_blocks)
+	{
+		if (_state_of_game->ball_player.x >= temp_struct_var.x and _state_of_game->ball_player.x <= temp_struct_var.x_max)
+		{
+			_state_of_game->ball_player.x_direction *= -1;
+		}
+		if (_state_of_game->ball_player.y >= temp_struct_var.y and _state_of_game->ball_player.y <= temp_struct_var.y_max)
+		{
+			_state_of_game->ball_player.y_direction *= -1;
+		}
+	}
+	
 }
 
 int main(int argc, char *argv[])

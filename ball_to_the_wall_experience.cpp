@@ -44,7 +44,7 @@ struct colored_block
 {
 	Sprite* block_sprite;
 	int x, y, x_max,y_max, width, height;
-	int hit_points = 2;
+	int hit_points;
 
 };
 
@@ -59,8 +59,8 @@ public:
 	{
 		x_player = 0;
 		y_player = 0;
-		ball_object.x = 0;
-		ball_object.y = 0;
+		ball_object.x = 400;
+		ball_object.y = 700;
 		ball_object.radius = 0;
 		ball_object.speed = 0;
 		ball_object.x_direction = 0;
@@ -82,6 +82,9 @@ void manageCLIwindow();
 void drawSpriteStruct(colored_block tmp_struct);
 /// Funtion to manage ball collision with screen borders
 void manageBallCollision(State *_state_of_game, int *_scaled_size_ball_w, int *_scaled_size_ball_h);
+void removeBlock(std::vector<colored_block>& blocks, int amount_of_hp);
+//void manageBallCollisionWithBlocks(State* _state_of_game, int* _scaled_size_ball_w, int* _scaled_size_ball_h);
+
 
 class MyFramework : public Framework
 {
@@ -89,9 +92,9 @@ public:
 	FRKey key_api;
 	FRMouseButton mouse_api;
 	State state_of_game;
-	Sprite* enemy_block_1;
 	Sprite* player_sprite;
 	Sprite* ball_sprite;
+	Sprite* backgroud_sprite;
 	bool _init_arena = false;
 	int size_for_blocks_h, size_for_blocks_w;
 	int scaled_size_for_blocks_h, scaled_size_for_blocks_w;
@@ -119,10 +122,9 @@ public:
 	virtual bool Init()
 	{
 		cout << "Init called" << endl;
-		enemy_block_1 = createSprite(".\\data\\01-Breakout-Tiles.png");
 		player_sprite = createSprite(".\\data\\49-Breakout-Tiles.png");
 		ball_sprite = createSprite(".\\data\\62-Breakout-Tiles.png");
-		getSpriteSize(enemy_block_1, size_for_blocks_w, size_for_blocks_h);
+		backgroud_sprite = createSprite(".\\data\\02-BACKGROUND.jpg");
 		getSpriteSize(player_sprite, size_player_w, size_player_h);
 		getSpriteSize(ball_sprite, size_ball_w, size_ball_h);
 		getScreenSize(resolution_w, resolution_h);
@@ -130,8 +132,13 @@ public:
 		//This doesn't have to be recalculated each time - const?
 		resolution_param_w = resolution_w / static_cast<float>(800);
 		resolution_param_h = resolution_h / static_cast<float>(600);
-		scaled_size_for_blocks_h = size_for_blocks_h / static_cast <float>(4) * resolution_param_h;
-		scaled_size_for_blocks_w = size_for_blocks_w / static_cast <float>(4) * resolution_param_w;
+
+		setSpriteSize(backgroud_sprite, resolution_w, resolution_h);
+		
+		/// <summary>
+		/// Blocks
+		/// </summary>
+		/// <returns></returns>
 		for (int x = 0; x <= 8; x ++)
 		//for (int x = 0; x <= scaled_size_for_blocks_w * 8; x += scaled_size_for_blocks_w)
 		{
@@ -141,6 +148,11 @@ public:
 				colored_block temp_struct{};
 				temp_struct.block_sprite = createSprite(".\\data\\01-Breakout-Tiles.png");
 				getSpriteSize(temp_struct.block_sprite, size_for_blocks_w, size_for_blocks_h);
+				/// <summary>
+				/// This does not need to be recomputed every loop.
+				/// </summary>
+				scaled_size_for_blocks_h = size_for_blocks_h / static_cast <float>(4) * resolution_param_h;
+				scaled_size_for_blocks_w = size_for_blocks_w / static_cast <float>(4) * resolution_param_w;
 				setSpriteSize(temp_struct.block_sprite, scaled_size_for_blocks_w, scaled_size_for_blocks_h);
 				temp_struct.x = x * scaled_size_for_blocks_w;
 				temp_struct.y = y * scaled_size_for_blocks_h;
@@ -148,17 +160,23 @@ public:
 				temp_struct.height = y + scaled_size_for_blocks_h;
 				temp_struct.x_max = temp_struct.x + temp_struct.width;
 				temp_struct.y_max = temp_struct.y + temp_struct.height;
+				temp_struct.hit_points = 1;
 				state_of_game.list_of_blocks.push_back(temp_struct);
 			}
 		}
 		
-		
+		/// <summary>
+		/// Ball
+		/// </summary>
 		scaled_size_player_h = size_for_blocks_h / static_cast <float>(4) * resolution_param_h;
 		scaled_size_player_w = size_for_blocks_w / static_cast <float>(4) * resolution_param_w;
 		scaled_size_ball_h = size_ball_h / static_cast <float>(4) * resolution_param_h;
 		scaled_size_ball_w = size_ball_w / static_cast <float>(4) * resolution_param_w;
 		setSpriteSize(ball_sprite, scaled_size_ball_w, scaled_size_ball_h);
 
+		/// <summary>
+		/// Player
+		/// </summary>
 		state_of_game.x_player = resolution_w / 2 - (size_player_w / 4);
 		state_of_game.y_player = resolution_h - 50;
 		state_of_game.x_max_player = state_of_game.x_player + scaled_size_player_w;
@@ -169,8 +187,8 @@ public:
 		cout << "Current resolution is: " << resolution_h << "x" << resolution_w << endl;
 		cout << "Resolution scale is: " << resolution_param_h << "x" << resolution_param_w << endl;
 		cout << "Ticks from library initialization" << getTickCount() << endl;
-		cout << "Scaled the size blocks to " << scaled_size_for_blocks_h << " and " << scaled_size_for_blocks_w << endl;
-		cout << "Scaled the size mouse to " << scaled_size_player_h << " and " << scaled_size_player_w << endl;
+		//cout << "Scaled the size blocks to " << scaled_size_for_blocks_h << " and " << scaled_size_for_blocks_w << endl;
+		//cout << "Scaled the size mouse to " << scaled_size_player_h << " and " << scaled_size_player_w << endl;
 		
 		//Manage of the state of the blocks
 		
@@ -186,6 +204,7 @@ public:
 	//Tick each moment - need to re-draw everything per frame
 	virtual bool Tick()
 	{
+		drawSprite(backgroud_sprite, 0, 0);
 		//for_each(state_of_game.list_of_blocks.begin(), state_of_game.list_of_blocks.end(), drawSpriteStruct(state_of_game.list_of_blocks));
 		for (auto temp_struct_var : state_of_game.list_of_blocks)
 			drawSpriteStruct(temp_struct_var);
@@ -193,14 +212,9 @@ public:
 		manageBallCollision(&state_of_game, &scaled_size_ball_w, &scaled_size_ball_h);
 		//Drawing ball sprite
 		//Problem with ball sprite - speed is connected to ticks == FPS
-
-
 		drawSprite(ball_sprite, state_of_game.ball_object.x , state_of_game.ball_object.y);
-		
-			
 
 		///Manage keys pressed-released
-		//drawSprite(player_sprite, state_of_game.x_player - (scaled_size_player_w /2), state_of_game.y_player);
 		drawSprite(player_sprite, state_of_game.x_player, state_of_game.y_player);
 		
 		if (_init_time_key_left)
@@ -212,7 +226,6 @@ public:
 		{
 			state_of_game.x_player += 1;
 			state_of_game.x_max_player += 1;
-
 		}
 		return false;
 	}
@@ -240,7 +253,6 @@ public:
 		cout << "Direction XY : " << state_of_game.ball_object.x_direction << "," << state_of_game.ball_object.y_direction << endl;
 		_init_time_mouse = false;
 		}
-		
 	}
 
 	virtual void onMouseButtonClick(FRMouseButton button, bool isReleased)
@@ -263,7 +275,6 @@ public:
 		{
 			_init_time_key_left = true;
 		}
-		
 	}
 
 	virtual void onKeyReleased(FRKey k)
@@ -290,7 +301,6 @@ public:
 		{
 			_init_time_key_left = false;
 		}
-
 	}
 
 	virtual const char *GetTitle() override
@@ -397,11 +407,24 @@ void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _
 	{
 		if (_state_of_game->ball_object.x >= temp_struct_var.x and _state_of_game->ball_object.x <= temp_struct_var.x_max)
 		{
-			_state_of_game->ball_object.x_direction *= -1;
+			if (_state_of_game->ball_object.y >= temp_struct_var.y and _state_of_game->ball_object.y <= temp_struct_var.y_max)
+			{
+				_state_of_game->ball_object.y_direction *= -1;
+				temp_struct_var.hit_points -= 1;
+				cout << "Hit! " << temp_struct_var.hit_points << "hp left!" << endl;
+			}
+			//_state_of_game->ball_object.x_direction *= -1;
+			//temp_struct_var.hit_points -= 1;
+			//cout << "Hit! " << temp_struct_var.hit_points << "hp left!" << endl;
 		}
-		if (_state_of_game->ball_object.y >= temp_struct_var.y and _state_of_game->ball_object.y <= temp_struct_var.y_max)
+		//Remove block if hit points are 0
+		if (temp_struct_var.hit_points <= 0)
 		{
-			_state_of_game->ball_object.y_direction *= -1;
+			//_state_of_game->list_of_blocks.erase(temp_struct_var);
+			//std::remove(_state_of_game->list_of_blocks.begin(), _state_of_game->list_of_blocks.end(), temp_struct_var), _state_of_game->list_of_blocks.end();
+			destroySprite(temp_struct_var.block_sprite);
+			//removeBlock(_state_of_game->list_of_blocks, 0);
+			cout << "Removed a block!" << endl;
 		}
 	}
 	
@@ -414,20 +437,27 @@ void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _
 			_state_of_game->ball_object.y_direction *= -1;
 		}
 	}
+}
 
+void removeBlock(std::vector<colored_block>& blocks, int amount_of_hp) {
+	blocks.erase(
+		std::remove_if(blocks.begin(), blocks.end(), [&](colored_block const& blocks) {
+			return blocks.hit_points == amount_of_hp;
+			}),
+		blocks.end());
+	
 }
 
 int main(int argc, char *argv[])
 {
 	//	Co tu sie odpierdala
-	std::filesystem::path path_to_directory = std::filesystem::current_path();
-	const char *path_to_directory_char = "C:\\Users\\szink\\OneDrive\\Pulpit\\C C++ Projects\\unrealntership\\vs_solutions_SZ\\ball_to_the_wall_experience\\data\\01-Breakout-Tiles.png";
+	//std::filesystem::path path_to_directory = std::filesystem::current_path();
+	//const char *path_to_directory_char = "C:\\Users\\szink\\OneDrive\\Pulpit\\C C++ Projects\\unrealntership\\vs_solutions_SZ\\ball_to_the_wall_experience\\data\\01-Breakout-Tiles.png";
 	// path_to_directory_char = "C:\Users\szink\OneDrive\Pulpit\C C++ Projects\unrealntership\vs_solutions_SZ\ball_to_the_wall_experience\data\01-Breakout-Tiles.png";
-	path_to_directory += "\\data\\01-Breakout-Tiles.png";
+	//path_to_directory += "\\data\\01-Breakout-Tiles.png";
 	cout << "MAIN: Starting game..." << endl;
-	cout << "MAIN: Current path for image is: " << path_to_directory << endl;
-	cout << "MAIN: Current path for image is Cstring: " << path_to_directory_char << endl;
-
+	//cout << "MAIN: Current path for image is: " << path_to_directory << endl;
+	//cout << "MAIN: Current path for image is Cstring: " << path_to_directory_char << endl;
 	manageCLIwindow();
 	return run(new MyFramework);
 }

@@ -38,7 +38,8 @@ struct WindowSize
 struct colored_block
 {
 	Sprite* block_sprite;
-	int x, y;
+	int x, y, x_max,y_max, width, height;
+	int hit_points = 2;
 
 };
 
@@ -70,7 +71,7 @@ static float resolution_param_h, resolution_param_w;
 static int resolution_h, resolution_w;
 extern WindowSize* userWindowSize = new WindowSize();
 
-void millisecond_wait(unsigned ms);
+void millisecondWait(unsigned ms);
 // Function for managing CLI intput for window resolution
 void manageCLIwindow();
 void drawSpriteStruct(colored_block tmp_struct);
@@ -79,12 +80,10 @@ void manageBallCollision(State *_state_of_game, int *_scaled_size_ball_w, int *_
 
 class MyFramework : public Framework
 {
-
 public:
 	FRKey key_api;
 	FRMouseButton mouse_api;
 	State state_of_game;
-	
 	Sprite* enemy_block_1;
 	Sprite* player_sprite;
 	Sprite* ball_sprite;
@@ -103,6 +102,9 @@ public:
 		width = userWindowSize->width;
 		height = userWindowSize->height;
 		fullscreen = userWindowSize->fullscreen;
+		///By default I recognise the resolution as 800x600, so I scale the sprites form that value
+		resolution_param_w = resolution_w / static_cast<float>(800);
+		resolution_param_h = resolution_h / static_cast<float>(600);
 	}
 
 	virtual bool Init()
@@ -117,23 +119,42 @@ public:
 		
 		getScreenSize(resolution_w, resolution_h);
 
-		resolution_param_w = resolution_w / static_cast<float>(800);
-		resolution_param_h = resolution_h / static_cast<float>(600);
+		//This doesn't have to be recalculated each time - const?
 		scaled_size_for_blocks_h = size_for_blocks_h / static_cast <float>(4) * resolution_param_h;
 		scaled_size_for_blocks_w = size_for_blocks_w / static_cast <float>(4) * resolution_param_w;
+		for (int x = 0; x <= 8; x ++)
+		//for (int x = 0; x <= scaled_size_for_blocks_w * 8; x += scaled_size_for_blocks_w)
+		{
+			for (int y = 0; y <= 5; y ++)
+			{
+				//drawSprite(enemy_block_1, x , y);
+				colored_block temp_struct{};
+				temp_struct.block_sprite = createSprite(".\\data\\01-Breakout-Tiles.png");
+				getSpriteSize(temp_struct.block_sprite, size_for_blocks_w, size_for_blocks_h);
+				setSpriteSize(temp_struct.block_sprite, scaled_size_for_blocks_w, scaled_size_for_blocks_h);
+				temp_struct.x = x * scaled_size_for_blocks_w;
+				temp_struct.y = y * scaled_size_for_blocks_h;
+				temp_struct.width = x + scaled_size_for_blocks_w;
+				temp_struct.height = y + scaled_size_for_blocks_h;
+				temp_struct.x_max = temp_struct.x + temp_struct.width;
+				temp_struct.height = temp_struct.y + temp_struct.height;
+				state_of_game.list_of_blocks.push_back(temp_struct);
+			}
+		}
+		
 		scaled_size_player_h = size_for_blocks_h / static_cast <float>(4) * resolution_param_h;
 		scaled_size_player_w = size_for_blocks_w / static_cast <float>(4) * resolution_param_w;
 		scaled_size_ball_h = size_ball_h / static_cast <float>(4) * resolution_param_h;
 		scaled_size_ball_w = size_ball_w / static_cast <float>(4) * resolution_param_w;
 
-
-		setSpriteSize(enemy_block_1, scaled_size_for_blocks_w, scaled_size_for_blocks_h);
+		//setSpriteSize(enemy_block_1, scaled_size_for_blocks_w, scaled_size_for_blocks_h);
 		setSpriteSize(player_sprite, scaled_size_player_w, scaled_size_player_h);
 		setSpriteSize(ball_sprite, scaled_size_ball_w, scaled_size_ball_h);
 
 		//state_of_game.y_player = resolution_w / 2 - (size_player_w / 2);
 		state_of_game.y_player = resolution_h - 50;
 		state_of_game.ball_player.speed = 1;
+		
 		cout << "Current resolution is: " << resolution_h << "x" << resolution_w << endl;
 		cout << "Resolution scale is: " << resolution_param_h << "x" << resolution_param_w << endl;
 		cout << "Ticks from library initialization" << getTickCount() << endl;
@@ -141,22 +162,6 @@ public:
 		cout << "Scaled the size mouse to " << scaled_size_player_h << " and " << scaled_size_player_w << endl;
 		
 		//Manage of the state of the blocks
-		for (int x = 0; x <= scaled_size_for_blocks_w * 8; x += scaled_size_for_blocks_w)
-		{
-			for (int y = 0; y <= scaled_size_for_blocks_h * 5; y += scaled_size_for_blocks_h)
-			{
-				//drawSprite(enemy_block_1, x , y);
-				colored_block temp_struct{};
-				temp_struct.block_sprite = createSprite(".\\data\\01-Breakout-Tiles.png");
-				temp_struct.x = x;
-				temp_struct.y = y;
-				getSpriteSize(temp_struct.block_sprite, size_for_blocks_w, size_for_blocks_h);
-				setSpriteSize(temp_struct.block_sprite, scaled_size_for_blocks_w, scaled_size_for_blocks_h);
-				state_of_game.list_of_blocks.push_back(temp_struct);
-
-
-			}
-		}
 		
 
 		return true;
@@ -164,7 +169,7 @@ public:
 
 	virtual void Close()
 	{
-		cout << "Close function called" << endl;
+		cout << "Close function called, bye bye" << endl;
 	}
 
 	//Tick each moment - need to re-draw everything per frame
@@ -187,7 +192,7 @@ public:
 
 	virtual void onMouseMove(int x, int y, int xrelative, int yrelative)
 	{
-		//cout << "Mouse moved at x,y : " << x << "," << y << endl;
+		cout << "Mouse moved at x,y : " << x << "," << y << endl;
 		if(_init_time_mouse == true)
 		{
 			state_of_game.ball_player.x = x - (scaled_size_ball_w / 2);
@@ -247,7 +252,7 @@ public:
 	}
 };
 
- void millisecond_wait(unsigned ms)
+ void millisecondWait(unsigned ms)
  {
  	std::chrono::milliseconds dura(ms);
  	std::this_thread::sleep_for(dura);

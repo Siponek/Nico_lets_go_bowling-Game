@@ -45,6 +45,7 @@ struct colored_block
 	Sprite* block_sprite;
 	int x, y, x_max,y_max, width, height;
 	int hit_points;
+	bool is_alive;
 
 };
 
@@ -75,6 +76,8 @@ wchar_t** __wargv;
 static float resolution_param_h, resolution_param_w;
 static int resolution_h, resolution_w;
 extern WindowSize* userWindowSize = new WindowSize();
+
+int vector_size = 0;
 
 //void millisecondWait(unsigned ms);
 // Function for managing CLI intput for window resolution
@@ -164,7 +167,7 @@ public:
 				state_of_game.list_of_blocks.push_back(temp_struct);
 			}
 		}
-		
+		vector_size = state_of_game.list_of_blocks.size();
 		/// <summary>
 		/// Ball
 		/// </summary>
@@ -389,6 +392,7 @@ void drawSpriteStruct(colored_block tmp_struct)
 /// Funtion to manage ball collision with screen borders
 void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _scaled_size_ball_h)
 {
+	
 	/// Ball collision with screen borders
 	if ((_state_of_game->ball_object.x >= resolution_w - *_scaled_size_ball_w) or (_state_of_game->ball_object.x <= 0))
 	{
@@ -403,7 +407,8 @@ void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _
 	_state_of_game->ball_object.y += (_state_of_game->ball_object.y_direction * _state_of_game->ball_object.speed);
 
 	/// Ball collision with blocks
-	for (auto temp_struct_var : _state_of_game->list_of_blocks)
+	//for (auto temp_struct_var : _state_of_game->list_of_blocks) // bad because this is a copy, with auto& it is a reference
+	for (auto& temp_struct_var : _state_of_game->list_of_blocks)
 	{
 		if (_state_of_game->ball_object.x >= temp_struct_var.x and _state_of_game->ball_object.x <= temp_struct_var.x_max)
 		{
@@ -413,20 +418,11 @@ void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _
 				temp_struct_var.hit_points -= 1;
 				cout << "Hit! " << temp_struct_var.hit_points << "hp left!" << endl;
 			}
-			//_state_of_game->ball_object.x_direction *= -1;
-			//temp_struct_var.hit_points -= 1;
-			//cout << "Hit! " << temp_struct_var.hit_points << "hp left!" << endl;
 		}
-		//Remove block if hit points are 0
-		if (temp_struct_var.hit_points <= 0)
-		{
-			//_state_of_game->list_of_blocks.erase(temp_struct_var);
-			//std::remove(_state_of_game->list_of_blocks.begin(), _state_of_game->list_of_blocks.end(), temp_struct_var), _state_of_game->list_of_blocks.end();
-			destroySprite(temp_struct_var.block_sprite);
-			//removeBlock(_state_of_game->list_of_blocks, 0);
-			cout << "Removed a block!" << endl;
-		}
+		//Colision on y axis??
 	}
+	//destroySprite(temp_struct_var.block_sprite);
+	removeBlock(_state_of_game->list_of_blocks, 0);
 	
 	/// Ball colision with player
 	if (_state_of_game->ball_object.x >=_state_of_game->x_player and _state_of_game->ball_object.x <= _state_of_game->x_max_player)
@@ -440,12 +436,9 @@ void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _
 }
 
 void removeBlock(std::vector<colored_block>& blocks, int amount_of_hp) {
-	blocks.erase(
-		std::remove_if(blocks.begin(), blocks.end(), [&](colored_block const& blocks) {
-			return blocks.hit_points == amount_of_hp;
-			}),
-		blocks.end());
-	
+	std::remove_if(blocks.begin(), blocks.end(), [&](colored_block const& blocks) {
+		return blocks.hit_points <= amount_of_hp;
+		});
 }
 
 int main(int argc, char *argv[])

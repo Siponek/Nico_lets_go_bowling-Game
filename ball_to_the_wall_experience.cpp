@@ -24,12 +24,18 @@ struct Player
 
 struct Ball
 {
+	Sprite* ball_sprite;
 	int x = 1;
 	int y = 1;
 	int radius;
 	int speed;
 	int x_direction, y_direction;
 	bool isActive = false;
+	
+	int left() { return x ; }
+	int right() { return x + radius * 2; }
+	int top() { return y ; }
+	int bottom() { return y + radius * 2; }
 };
 
 //? Temporarty struct for managing window of the game
@@ -46,6 +52,10 @@ struct colored_block
 	int x, y, x_max,y_max, width, height;
 	int hit_points;
 	bool is_alive;
+	int left() { return x ; }
+	int right() { return x + width; }
+	int top() { return y ; }
+	int bottom() { return y + height; }
 
 };
 
@@ -60,10 +70,12 @@ public:
 	{
 		x_player = 0;
 		y_player = 0;
+		x_max_player = 0;
+		y_max_player = 0;
 		ball_object.x = 400;
 		ball_object.y = 700;
 		ball_object.radius = 0;
-		ball_object.speed = 0;
+		ball_object.speed = 1;
 		ball_object.x_direction = 0;
 		ball_object.y_direction = 0;
 	}
@@ -85,6 +97,7 @@ void manageCLIwindow();
 void drawSpriteStruct(colored_block tmp_struct);
 /// Funtion to manage ball collision with screen borders
 void manageBallCollision(State *_state_of_game, int *_scaled_size_ball_w, int *_scaled_size_ball_h);
+void manageblockCollision(State* _state_of_game, colored_block* temp_struct_var);
 void removeBlock(std::vector<colored_block>& blocks, int amount_of_hp);
 //void manageBallCollisionWithBlocks(State* _state_of_game, int* _scaled_size_ball_w, int* _scaled_size_ball_h);
 
@@ -142,7 +155,7 @@ public:
 		/// Blocks
 		/// </summary>
 		/// <returns></returns>
-		for (int x = 0; x <= 8; x ++)
+		for (int x = 0; x <= 7; x ++)
 		//for (int x = 0; x <= scaled_size_for_blocks_w * 8; x += scaled_size_for_blocks_w)
 		{
 			for (int y = 0; y <= 5; y ++)
@@ -175,6 +188,8 @@ public:
 		scaled_size_player_w = size_for_blocks_w / static_cast <float>(4) * resolution_param_w;
 		scaled_size_ball_h = size_ball_h / static_cast <float>(4) * resolution_param_h;
 		scaled_size_ball_w = size_ball_w / static_cast <float>(4) * resolution_param_w;
+		//Does not have to be round but w/e
+		state_of_game.ball_object.radius = scaled_size_ball_w / 2;
 		setSpriteSize(ball_sprite, scaled_size_ball_w, scaled_size_ball_h);
 
 		/// <summary>
@@ -208,12 +223,13 @@ public:
 	virtual bool Tick()
 	{
 		drawSprite(backgroud_sprite, 0, 0);
-		//for_each(state_of_game.list_of_blocks.begin(), state_of_game.list_of_blocks.end(), drawSpriteStruct(state_of_game.list_of_blocks));
-		for (auto temp_struct_var : state_of_game.list_of_blocks)
+		for (auto& temp_struct_var : state_of_game.list_of_blocks)
+		{
 			drawSpriteStruct(temp_struct_var);
-		//Drawing player sprite
+			manageblockCollision(&state_of_game, &temp_struct_var);
+		}
+		
 		manageBallCollision(&state_of_game, &scaled_size_ball_w, &scaled_size_ball_h);
-		//Drawing ball sprite
 		//Problem with ball sprite - speed is connected to ticks == FPS
 		drawSprite(ball_sprite, state_of_game.ball_object.x , state_of_game.ball_object.y);
 
@@ -230,6 +246,9 @@ public:
 			state_of_game.x_player += 1;
 			state_of_game.x_max_player += 1;
 		}
+	//removeBlock(_state_of_game->list_of_blocks, 0);
+		
+
 		return false;
 	}
 
@@ -389,10 +408,9 @@ void drawSpriteStruct(colored_block tmp_struct)
 }
 
 
-/// Funtion to manage ball collision with screen borders
+/// Funtion to manage ball collision with screen borders //TODO To many things in one function
 void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _scaled_size_ball_h)
 {
-	
 	/// Ball collision with screen borders
 	if ((_state_of_game->ball_object.x >= resolution_w - *_scaled_size_ball_w) or (_state_of_game->ball_object.x <= 0))
 	{
@@ -405,23 +423,6 @@ void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _
 	}
 	_state_of_game->ball_object.x += (_state_of_game->ball_object.x_direction * _state_of_game->ball_object.speed);
 	_state_of_game->ball_object.y += (_state_of_game->ball_object.y_direction * _state_of_game->ball_object.speed);
-
-	/// Ball collision with blocks
-	//for (auto temp_struct_var : _state_of_game->list_of_blocks) // bad because this is a copy, with auto& it is a reference
-	for (auto& temp_struct_var : _state_of_game->list_of_blocks)
-	{
-		if (_state_of_game->ball_object.x >= temp_struct_var.x and _state_of_game->ball_object.x <= temp_struct_var.x_max)
-		{
-			if (_state_of_game->ball_object.y >= temp_struct_var.y and _state_of_game->ball_object.y <= temp_struct_var.y_max)
-			{
-				_state_of_game->ball_object.y_direction *= -1;
-				temp_struct_var.hit_points -= 1;
-				cout << "Hit! " << temp_struct_var.hit_points << "hp left!" << endl;
-			}
-		}
-		//Colision on y axis??
-	}
-	//destroySprite(temp_struct_var.block_sprite);
 	removeBlock(_state_of_game->list_of_blocks, 0);
 	
 	/// Ball colision with player
@@ -429,10 +430,38 @@ void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _
 	{
 		if (_state_of_game->ball_object.y >= _state_of_game->y_player and _state_of_game->ball_object.y <= _state_of_game->y_max_player)
 		{
-			cout<< "That's a colision! XY ball " << _state_of_game->ball_object.x << " " << _state_of_game->ball_object.y << "XY player " << _state_of_game->x_player  << "\\" << _state_of_game->x_max_player << endl;
+			//GAME OVER
 			_state_of_game->ball_object.y_direction *= -1;
 		}
 	}
+}
+bool isIntersecting(colored_block* block , Ball ball)
+{
+	return block->right() >= ball.left() && block->left() <= ball.right() &&
+		block->bottom() >= ball.top() && block->top() <= ball.bottom();
+}
+
+void manageblockCollision(State* _state_of_game, colored_block* temp_struct_var)
+{
+	/// Ball collision with blocks
+//for (auto temp_struct_var : _state_of_game->list_of_blocks) // bad because this is a copy, with auto& it is a reference
+		if (!isIntersecting(temp_struct_var, _state_of_game->ball_object)) return;
+		/// Calculating what is the position of the ball depending on the distance from left-right top-bot
+		int overlapLeft{ _state_of_game->ball_object.right() - temp_struct_var->left()};
+		int overlapRight{ temp_struct_var->right() - _state_of_game->ball_object.left() };
+		int overlapTop{ _state_of_game->ball_object.bottom() - temp_struct_var->top() };
+		int overlapBottom{ temp_struct_var->bottom() - _state_of_game->ball_object.top() };
+
+		bool ballFromLeft(abs(overlapLeft) < abs(overlapRight));
+		bool ballFromTop(abs(overlapTop) < abs(overlapBottom));
+
+		int minOverlapX{ ballFromLeft ? overlapLeft : overlapRight };
+		int minOverlapY{ ballFromTop ? overlapTop : overlapBottom };
+		if (abs(minOverlapX) < abs(minOverlapY))
+			_state_of_game->ball_object.x_direction = ballFromLeft ? -_state_of_game->ball_object.speed : _state_of_game->ball_object.speed;
+		else
+			_state_of_game->ball_object.y_direction = ballFromTop ? -_state_of_game->ball_object.speed : _state_of_game->ball_object.speed;
+		temp_struct_var->hit_points -= 1;
 }
 
 void removeBlock(std::vector<colored_block>& blocks, int amount_of_hp) {

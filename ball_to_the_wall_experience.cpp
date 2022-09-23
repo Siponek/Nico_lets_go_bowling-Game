@@ -18,8 +18,17 @@ using std::for_each;
 //using namespace std::filesystem;
 struct Player
 {
+	Sprite* player_sprite;
 	int x_player, x_max_player;
 	int y_player, y_max_player;
+	Player()
+	{
+		player_sprite = createSprite(".\\data\\49-Breakout-Tiles.png");
+		x_player = 0;
+		x_max_player = 0;
+		y_player = 0;
+		y_max_player = 0;
+	}
 };
 
 struct Ball
@@ -73,10 +82,13 @@ struct colored_block
 class State
 {
 public:
-	int x_player, x_max_player;
-	int y_player, y_max_player;
+	Player player;
 	Ball ball_object;
 	vector<colored_block> list_of_blocks;
+	Sprite* backgroud_sprite;
+	int x_player, x_max_player;
+	int y_player, y_max_player;
+	bool game_over;
 	State()
 	{
 		x_player = 0;
@@ -89,8 +101,98 @@ public:
 		ball_object.speed = 1;
 		ball_object.x_direction = 0;
 		ball_object.y_direction = 0;
+		game_over = false;
 	}
-	
+	/// <summary>
+	/// Funtion to take a struct with sprite and draw it. Used for auto "for c: vector" loop 
+	/// </summary>
+	/// <param name="_state_of_game"></param>
+	/// <param name="_scaled_size_ball_w"></param>
+	/// <param name="_scaled_size_ball_h"></param>
+	void drawSpriteStruct()
+	{
+		for (auto& temp_struct_var : this->list_of_blocks)
+		{
+			manageblockCollision(&temp_struct_var);
+			drawSprite(temp_struct_var.block_sprite, temp_struct_var.x, temp_struct_var.y);
+		}
+	}
+	void manageblockCollision(colored_block* temp_struct_var)
+	{
+		/// Ball collision with blocks
+	//for (auto temp_struct_var : _state_of_game->list_of_blocks) // bad because this auto is a copy, with auto& it is a reference
+		if (!isIntersecting(temp_struct_var, this->ball_object)) return;
+		/// Calculating what is the position of the ball depending on the distance from left-right top-bot
+		int overlapLeft{ this->ball_object.right() - temp_struct_var->left() };
+		int overlapRight{ temp_struct_var->right() - this->ball_object.left() };
+		int overlapTop{ this->ball_object.bottom() - temp_struct_var->top() };
+		int overlapBottom{ temp_struct_var->bottom() - this->ball_object.top() };
+		bool ballFromLeft(abs(overlapLeft) < abs(overlapRight));
+		bool ballFromTop(abs(overlapTop) < abs(overlapBottom));
+		int minOverlapX{ ballFromLeft ? overlapLeft : overlapRight };
+		int minOverlapY{ ballFromTop ? overlapTop : overlapBottom };
+		///	slowing down on hit
+		//if (abs(minOverlapX) < abs(minOverlapY))
+		//	this->ball_object.x_direction = ballFromLeft ? -this->ball_object.x_direction : this->ball_object.x_direction;
+		//else
+		//	this->ball_object.y_direction = ballFromTop ? -this->ball_object.y_direction : this->ball_object.y_direction;
+		if (abs(minOverlapX) < abs(minOverlapY))
+			this->ball_object.x_direction = ballFromLeft ? -this->ball_object.speed : this->ball_object.speed;
+		else
+			this->ball_object.y_direction = ballFromTop ? -this->ball_object.speed : this->ball_object.speed;
+		temp_struct_var->hit_points -= 1;
+		cout << "HIT!" << temp_struct_var->hit_points << "HP left!" << endl;
+	}
+	bool isIntersecting(colored_block* block, Ball ball)
+	{
+		return block->right() >= ball.left() && block->left() <= ball.right() && block->bottom() >= ball.top() && block->top() <= ball.bottom();
+	}
+	void manageBallSpeed()
+	{
+		/// Ball vector of velocity manegment
+		this->ball_object.x += (this->ball_object.x_direction * this->ball_object.speed);
+		this->ball_object.y += (this->ball_object.y_direction * this->ball_object.speed);
+	}
+	/// Funtion to manage ball collision with screen borders //TODO To many things in one function
+	void manageBallCollision(int* _scaled_size_ball_w, int* _scaled_size_ball_h, int* resolution_width, int* resolution_height)
+	{
+		/// Ball collision with screen borders
+		if ((this->ball_object.x >= *resolution_width - *_scaled_size_ball_w) or (this->ball_object.x <= 0))
+		{
+			//cout << "this.ball_object.x " << this->ball_object.x << (this->ball_object.x >= resolution_w - *_scaled_size_ball_w) << endl;
+			this->ball_object.x_direction *= -1;
+		}
+		if ((this->ball_object.y <= 0) or (this->ball_object.y >= *resolution_height - *_scaled_size_ball_h))
+		{
+			this->ball_object.y_direction *= -1;
+		}
+		if (this->ball_object.y >= *resolution_height - *_scaled_size_ball_h)
+		{
+					//GAME OVER
+			cout << "/////__GAME OVER__/////" << endl;
+			game_over = true;
+		}
+		/// Ball colision with player
+		if (this->ball_object.x >= this->x_player and this->ball_object.x <= this->x_max_player)
+		{
+			if (this->ball_object.y >= this->y_player and this->ball_object.y <= this->y_max_player)
+			{
+				this->ball_object.y_direction *= -1;
+			}
+		}
+	}
+	void removeBlock(int amount_of_hp)
+	{
+		//std::remove_if(blocks.begin(), blocks.end(), [&](colored_block const& blocks) {
+		//	return blocks.hit_points <= amount_of_hp;
+		//	});
+		this->list_of_blocks.erase(remove_if(begin(this->list_of_blocks), end(this->list_of_blocks),
+			[&](const colored_block& blocks)
+			{
+				return blocks.hit_points <= amount_of_hp;
+			}),
+			end(this->list_of_blocks));
+	}
 };
 
 int __argc;
@@ -99,21 +201,10 @@ wchar_t** __wargv;
 static float resolution_param_h, resolution_param_w;
 static int resolution_h, resolution_w;
 extern WindowSize* userWindowSize = new WindowSize();
-
-int vector_size = 0;
-
 //void millisecondWait(unsigned ms);
 // Function for managing CLI intput for window resolution
 void manageCLIwindow();
-void drawSpriteStruct(colored_block tmp_struct);
 /// Funtion to manage ball collision with screen borders
-void manageBallCollision(State *_state_of_game, int *_scaled_size_ball_w, int *_scaled_size_ball_h);
-void manageblockCollision(State* _state_of_game, colored_block* temp_struct_var);
-void removeBlock(std::vector<colored_block>& blocks, int amount_of_hp);
-void manageBallSpeed(State* _state_of_game);
-
-//void manageBallCollisionWithBlocks(State* _state_of_game, int* _scaled_size_ball_w, int* _scaled_size_ball_h);
-
 
 class MyFramework : public Framework
 {
@@ -193,7 +284,6 @@ public:
 				state_of_game.list_of_blocks.push_back(temp_struct);
 			}
 		}
-		vector_size = state_of_game.list_of_blocks.size();
 		/// <summary>
 		/// Ball
 		/// </summary>
@@ -203,26 +293,25 @@ public:
 		scaled_size_ball_w = size_ball_w / static_cast <float>(4) * resolution_param_w;
 		//Does not have to be round but w/e
 		state_of_game.ball_object.radius = scaled_size_ball_w / 2;
+		state_of_game.ball_object.x = resolution_w / 2 - (size_player_w / 4) ;
+		state_of_game.ball_object.y = resolution_h - scaled_size_player_h - 20;
+		state_of_game.ball_object.x_direction = 0;
+		state_of_game.ball_object.y_direction = 0;
+
 		setSpriteSize(ball_sprite, scaled_size_ball_w, scaled_size_ball_h);
 
 		/// <summary>
 		/// Player
 		/// </summary>
 		state_of_game.x_player = resolution_w / 2 - (size_player_w / 4);
-		state_of_game.y_player = resolution_h - 50;
+		state_of_game.y_player = resolution_h - scaled_size_player_h;
 		state_of_game.x_max_player = state_of_game.x_player + scaled_size_player_w;
 		state_of_game.y_max_player = state_of_game.y_player + scaled_size_player_h;
-		state_of_game.ball_object.speed = 1;
 		setSpriteSize(player_sprite, scaled_size_player_w, scaled_size_player_h);
-		
 		cout << "Current resolution is: " << resolution_h << "x" << resolution_w << endl;
 		cout << "Resolution scale is: " << resolution_param_h << "x" << resolution_param_w << endl;
 		cout << "Ticks from library initialization" << getTickCount() << endl;
-		//cout << "Scaled the size blocks to " << scaled_size_for_blocks_h << " and " << scaled_size_for_blocks_w << endl;
-		//cout << "Scaled the size mouse to " << scaled_size_player_h << " and " << scaled_size_player_w << endl;
-		
-		//Manage of the state of the blocks
-		
+		state_of_game.game_over = false;
 
 		return true;
 	}
@@ -235,21 +324,16 @@ public:
 	//Tick each moment - need to re-draw everything per frame
 	virtual bool Tick()
 	{
+		//?	Problem with ball sprite - speed is connected to ticks == FPS
+		//? Also draw sprite takes int instead of float so the speed cannot be '15%' or whatever since you cannot draw 0.15 pixels
 		drawSprite(backgroud_sprite, 0, 0);
-		for (auto& temp_struct_var : state_of_game.list_of_blocks)
-		{
-			drawSpriteStruct(temp_struct_var);
-			manageblockCollision(&state_of_game, &temp_struct_var);
-		}
-		
-		manageBallCollision(&state_of_game, &scaled_size_ball_w, &scaled_size_ball_h);
-		//Problem with ball sprite - speed is connected to ticks == FPS
-		manageBallSpeed(&state_of_game);
 		drawSprite(ball_sprite, state_of_game.ball_object.x , state_of_game.ball_object.y);
-
 		///Manage keys pressed-released
 		drawSprite(player_sprite, state_of_game.x_player, state_of_game.y_player);
 		
+		state_of_game.drawSpriteStruct();
+		state_of_game.manageBallCollision(&scaled_size_ball_w, &scaled_size_ball_h, &resolution_w, &resolution_h);
+		state_of_game.manageBallSpeed();
 		if (_init_time_key_left)
 		{
 			state_of_game.x_player -= 1;
@@ -260,8 +344,14 @@ public:
 			state_of_game.x_player += 1;
 			state_of_game.x_max_player += 1;
 		}
-		removeBlock(state_of_game.list_of_blocks, 0);
+		state_of_game.removeBlock(0);
+		if (state_of_game.game_over)
+		{
+			cout << "RESETING" << endl;
+			this->Init();
+		}
 
+		
 		return false;
 	}
 
@@ -283,8 +373,9 @@ public:
 			//This doesn't need to be checked on positive, because of {-abs()}
 			if (state_of_game.ball_object.y_direction >= 0)
 				state_of_game.ball_object.y_direction = -1;
+			state_of_game.ball_object.speed = int(sqrt(pow(state_of_game.ball_object.x_direction, 2) + pow(state_of_game.ball_object.y_direction, 2)));
 			
-		cout << "Direction relative XY : " << xrelative << "," << yrelative << endl;
+		cout << "Launch speed is: " << state_of_game.ball_object.speed<< endl;
 		cout << "Direction XY : " << state_of_game.ball_object.x_direction << "," << state_of_game.ball_object.y_direction << endl;
 		_init_time_mouse = false;
 		}
@@ -408,92 +499,6 @@ void manageCLIwindow()
 		userWindowSize->height = stoi(tempArgStringSecond);
 		userWindowSize->fullscreen = false;
 	};
-}
-
-/// <summary>
-/// Funtion to take a struct with sprite and draw it. Used for auto "for c: vector" loop 
-/// </summary>
-/// <param name="_state_of_game"></param>
-/// <param name="_scaled_size_ball_w"></param>
-/// <param name="_scaled_size_ball_h"></param>
-void drawSpriteStruct(colored_block tmp_struct)
-{
-	drawSprite(tmp_struct.block_sprite, tmp_struct.x, tmp_struct.y);
-}
-
-void manageBallSpeed(State* _state_of_game)
-{
-	/// Ball vector of velocity manegment
-	_state_of_game->ball_object.x += (_state_of_game->ball_object.x_direction * _state_of_game->ball_object.speed);
-	_state_of_game->ball_object.y += (_state_of_game->ball_object.y_direction * _state_of_game->ball_object.speed);
-}
-
-/// Funtion to manage ball collision with screen borders //TODO To many things in one function
-void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _scaled_size_ball_h)
-{
-	/// Ball collision with screen borders
-	if ((_state_of_game->ball_object.x >= resolution_w - *_scaled_size_ball_w) or (_state_of_game->ball_object.x <= 0))
-	{
-		//cout << "_state_of_game.ball_object.x " << _state_of_game->ball_object.x << (_state_of_game->ball_object.x >= resolution_w - *_scaled_size_ball_w) << endl;
-		_state_of_game->ball_object.x_direction *= -1;
-	}
-	if ((_state_of_game->ball_object.y >= resolution_h - *_scaled_size_ball_h) or (_state_of_game->ball_object.y <= 0))
-	{
-		_state_of_game->ball_object.y_direction *= -1;
-	}
-	/// Ball colision with player
-	if (_state_of_game->ball_object.x >=_state_of_game->x_player and _state_of_game->ball_object.x <= _state_of_game->x_max_player)
-	{
-		if (_state_of_game->ball_object.y >= _state_of_game->y_player and _state_of_game->ball_object.y <= _state_of_game->y_max_player)
-		{
-			//GAME OVER
-			_state_of_game->ball_object.y_direction *= -1;
-		}
-	}
-}
-bool isIntersecting(colored_block* block , Ball ball)
-{
-	return block->right() >= ball.left() && block->left() <= ball.right() && block->bottom() >= ball.top() && block->top() <= ball.bottom();
-}
-
-void manageblockCollision(State* _state_of_game, colored_block* temp_struct_var)
-{
-	/// Ball collision with blocks
-//for (auto temp_struct_var : _state_of_game->list_of_blocks) // bad because this auto is a copy, with auto& it is a reference
-		if (!isIntersecting(temp_struct_var, _state_of_game->ball_object)) return;
-		/// Calculating what is the position of the ball depending on the distance from left-right top-bot
-		int overlapLeft{ _state_of_game->ball_object.right() - temp_struct_var->left()};
-		int overlapRight{ temp_struct_var->right() - _state_of_game->ball_object.left() };
-		int overlapTop{ _state_of_game->ball_object.bottom() - temp_struct_var->top() };
-		int overlapBottom{ temp_struct_var->bottom() - _state_of_game->ball_object.top() };
-		bool ballFromLeft(abs(overlapLeft) < abs(overlapRight));
-		bool ballFromTop(abs(overlapTop) < abs(overlapBottom));
-		int minOverlapX{ ballFromLeft ? overlapLeft : overlapRight };
-		int minOverlapY{ ballFromTop ? overlapTop : overlapBottom };
-		if (abs(minOverlapX) < abs(minOverlapY))
-			_state_of_game->ball_object.x_direction = ballFromLeft ? -_state_of_game->ball_object.speed : _state_of_game->ball_object.speed;
-		else
-			_state_of_game->ball_object.y_direction = ballFromTop ? -_state_of_game->ball_object.speed : _state_of_game->ball_object.speed;
-		temp_struct_var->hit_points -= 1;
-		cout << "HIT!"<< temp_struct_var->hit_points << "HP left!" << endl;
-}
-
-void removeBlock(vector<colored_block>& blocks, int amount_of_hp) {
-
-	
-	//std::remove_if(blocks.begin(), blocks.end(), [&](colored_block const& blocks) {
-	//	return blocks.hit_points <= amount_of_hp;
-	//	});
-
- 
-	blocks.erase(remove_if(begin(blocks), end(blocks),
-		[&](const colored_block& blocks )
-		{
-			return blocks.hit_points <= amount_of_hp;
-		}),
-		end(blocks));
-
-
 }
 
 int main(int argc, char *argv[])

@@ -27,15 +27,26 @@ struct Ball
 	Sprite* ball_sprite;
 	int x = 1;
 	int y = 1;
-	int radius;
-	int speed;
-	int x_direction, y_direction;
+	int radius = 0;
+	int speed = 0;
+	int x_direction = 0, y_direction = 0;
 	bool isActive = false;
 	
 	int left() { return x ; }
 	int right() { return x + radius * 2; }
 	int top() { return y ; }
 	int bottom() { return y + radius * 2; }
+	Ball()
+	{
+		ball_sprite = createSprite(".\\data\\62-Breakout-Tiles.png");
+		x = 0;
+		y = 0;
+		radius = 0;
+		speed = 0;
+		x_direction = 0;
+		y_direction = 0;
+		isActive = false;
+	};
 };
 
 //? Temporarty struct for managing window of the game
@@ -99,6 +110,8 @@ void drawSpriteStruct(colored_block tmp_struct);
 void manageBallCollision(State *_state_of_game, int *_scaled_size_ball_w, int *_scaled_size_ball_h);
 void manageblockCollision(State* _state_of_game, colored_block* temp_struct_var);
 void removeBlock(std::vector<colored_block>& blocks, int amount_of_hp);
+void manageBallSpeed(State* _state_of_game);
+
 //void manageBallCollisionWithBlocks(State* _state_of_game, int* _scaled_size_ball_w, int* _scaled_size_ball_h);
 
 
@@ -231,6 +244,7 @@ public:
 		
 		manageBallCollision(&state_of_game, &scaled_size_ball_w, &scaled_size_ball_h);
 		//Problem with ball sprite - speed is connected to ticks == FPS
+		manageBallSpeed(&state_of_game);
 		drawSprite(ball_sprite, state_of_game.ball_object.x , state_of_game.ball_object.y);
 
 		///Manage keys pressed-released
@@ -246,15 +260,14 @@ public:
 			state_of_game.x_player += 1;
 			state_of_game.x_max_player += 1;
 		}
-	//removeBlock(_state_of_game->list_of_blocks, 0);
-		
+		removeBlock(state_of_game.list_of_blocks, 0);
 
 		return false;
 	}
 
 	virtual void onMouseMove(int x, int y, int xrelative, int yrelative)
 	{
-		//cout << "Mouse moved at x,y : " << x << "," << y << endl;
+		//Blokcing the user input either to XY 1,-1 or -1,-1 since you cannot control the ball movement
 		if(_init_time_mouse == true)
 		{
 			state_of_game.ball_object.x = x - (scaled_size_ball_w / 2);
@@ -263,12 +276,12 @@ public:
 			//Y direction is inverted in window
 			state_of_game.ball_object.y_direction = -abs(yrelative);
 			//checks for the first time mouse is moved to give smallest speed
-			if (state_of_game.ball_object.x_direction > 1)
+			if (state_of_game.ball_object.x_direction == 0)
 				state_of_game.ball_object.x_direction = 1;
-			else if (state_of_game.ball_object.x_direction < -1)
-				state_of_game.ball_object.x_direction = -1;
+			//else if (state_of_game.ball_object.x_direction < -1)
+			//	state_of_game.ball_object.x_direction = -1;
 			//This doesn't need to be checked on positive, because of {-abs()}
-			if (state_of_game.ball_object.y_direction < -1)
+			if (state_of_game.ball_object.y_direction >= 0)
 				state_of_game.ball_object.y_direction = -1;
 			
 		cout << "Direction relative XY : " << xrelative << "," << yrelative << endl;
@@ -331,12 +344,13 @@ public:
 		return "Arcanoid fucking sucks";
 	}
 };
-
+//TODO implement waiting
  //void millisecondWait(unsigned ms)
  //{
  //	std::chrono::milliseconds dura(ms);
  //	std::this_thread::sleep_for(dura);
  //}
+
  // Function for managing CLI intput for window resolution
 void manageCLIwindow()
 {
@@ -407,6 +421,12 @@ void drawSpriteStruct(colored_block tmp_struct)
 	drawSprite(tmp_struct.block_sprite, tmp_struct.x, tmp_struct.y);
 }
 
+void manageBallSpeed(State* _state_of_game)
+{
+	/// Ball vector of velocity manegment
+	_state_of_game->ball_object.x += (_state_of_game->ball_object.x_direction * _state_of_game->ball_object.speed);
+	_state_of_game->ball_object.y += (_state_of_game->ball_object.y_direction * _state_of_game->ball_object.speed);
+}
 
 /// Funtion to manage ball collision with screen borders //TODO To many things in one function
 void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _scaled_size_ball_h)
@@ -421,10 +441,6 @@ void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _
 	{
 		_state_of_game->ball_object.y_direction *= -1;
 	}
-	_state_of_game->ball_object.x += (_state_of_game->ball_object.x_direction * _state_of_game->ball_object.speed);
-	_state_of_game->ball_object.y += (_state_of_game->ball_object.y_direction * _state_of_game->ball_object.speed);
-	removeBlock(_state_of_game->list_of_blocks, 0);
-	
 	/// Ball colision with player
 	if (_state_of_game->ball_object.x >=_state_of_game->x_player and _state_of_game->ball_object.x <= _state_of_game->x_max_player)
 	{
@@ -437,24 +453,21 @@ void manageBallCollision(State* _state_of_game, int* _scaled_size_ball_w, int* _
 }
 bool isIntersecting(colored_block* block , Ball ball)
 {
-	return block->right() >= ball.left() && block->left() <= ball.right() &&
-		block->bottom() >= ball.top() && block->top() <= ball.bottom();
+	return block->right() >= ball.left() && block->left() <= ball.right() && block->bottom() >= ball.top() && block->top() <= ball.bottom();
 }
 
 void manageblockCollision(State* _state_of_game, colored_block* temp_struct_var)
 {
 	/// Ball collision with blocks
-//for (auto temp_struct_var : _state_of_game->list_of_blocks) // bad because this is a copy, with auto& it is a reference
+//for (auto temp_struct_var : _state_of_game->list_of_blocks) // bad because this auto is a copy, with auto& it is a reference
 		if (!isIntersecting(temp_struct_var, _state_of_game->ball_object)) return;
 		/// Calculating what is the position of the ball depending on the distance from left-right top-bot
 		int overlapLeft{ _state_of_game->ball_object.right() - temp_struct_var->left()};
 		int overlapRight{ temp_struct_var->right() - _state_of_game->ball_object.left() };
 		int overlapTop{ _state_of_game->ball_object.bottom() - temp_struct_var->top() };
 		int overlapBottom{ temp_struct_var->bottom() - _state_of_game->ball_object.top() };
-
 		bool ballFromLeft(abs(overlapLeft) < abs(overlapRight));
 		bool ballFromTop(abs(overlapTop) < abs(overlapBottom));
-
 		int minOverlapX{ ballFromLeft ? overlapLeft : overlapRight };
 		int minOverlapY{ ballFromTop ? overlapTop : overlapBottom };
 		if (abs(minOverlapX) < abs(minOverlapY))
@@ -462,24 +475,30 @@ void manageblockCollision(State* _state_of_game, colored_block* temp_struct_var)
 		else
 			_state_of_game->ball_object.y_direction = ballFromTop ? -_state_of_game->ball_object.speed : _state_of_game->ball_object.speed;
 		temp_struct_var->hit_points -= 1;
+		cout << "HIT!"<< temp_struct_var->hit_points << "HP left!" << endl;
 }
 
-void removeBlock(std::vector<colored_block>& blocks, int amount_of_hp) {
-	std::remove_if(blocks.begin(), blocks.end(), [&](colored_block const& blocks) {
-		return blocks.hit_points <= amount_of_hp;
-		});
+void removeBlock(vector<colored_block>& blocks, int amount_of_hp) {
+
+	
+	//std::remove_if(blocks.begin(), blocks.end(), [&](colored_block const& blocks) {
+	//	return blocks.hit_points <= amount_of_hp;
+	//	});
+
+ 
+	blocks.erase(remove_if(begin(blocks), end(blocks),
+		[&](const colored_block& blocks )
+		{
+			return blocks.hit_points <= amount_of_hp;
+		}),
+		end(blocks));
+
+
 }
 
 int main(int argc, char *argv[])
 {
-	//	Co tu sie odpierdala
-	//std::filesystem::path path_to_directory = std::filesystem::current_path();
-	//const char *path_to_directory_char = "C:\\Users\\szink\\OneDrive\\Pulpit\\C C++ Projects\\unrealntership\\vs_solutions_SZ\\ball_to_the_wall_experience\\data\\01-Breakout-Tiles.png";
-	// path_to_directory_char = "C:\Users\szink\OneDrive\Pulpit\C C++ Projects\unrealntership\vs_solutions_SZ\ball_to_the_wall_experience\data\01-Breakout-Tiles.png";
-	//path_to_directory += "\\data\\01-Breakout-Tiles.png";
 	cout << "MAIN: Starting game..." << endl;
-	//cout << "MAIN: Current path for image is: " << path_to_directory << endl;
-	//cout << "MAIN: Current path for image is Cstring: " << path_to_directory_char << endl;
 	manageCLIwindow();
 	return run(new MyFramework);
 }

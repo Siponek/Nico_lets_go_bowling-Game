@@ -11,6 +11,9 @@
 
 #define player_collision_multiplier 1.15
 #define block_collision_multiplier 0.9
+#define ghost_mode_duration 3000
+#define ghost_mode_interval 10000
+
 
 using std::cin;
 using std::cout;
@@ -107,6 +110,7 @@ public:
 	vector<colored_block> list_of_blocks;
 	Sprite* backgroud_sprite;
 	unsigned int game_timer;
+	unsigned int ghost_mode_timer;
 	int x_player, x_max_player;
 	int y_player, y_max_player;
 	bool game_over;
@@ -125,6 +129,7 @@ public:
 		ball_object.x_direction = 0;
 		ball_object.y_direction = 0;
 		game_timer = 0;
+		ghost_mode_timer = 0;
 		game_over = false;
 		ghost_mode = false;
 	}
@@ -295,17 +300,12 @@ public:
 		getSpriteSize(player_sprite, size_player_w, size_player_h);
 		getSpriteSize(ball_sprite, size_ball_w, size_ball_h);
 		getScreenSize(resolution_w, resolution_h);
-
 		//This doesn't have to be recalculated each time - const?
 		resolution_param_w = resolution_w / static_cast<float>(800);
 		resolution_param_h = resolution_h / static_cast<float>(600);
-
 		setSpriteSize(backgroud_sprite, resolution_w, resolution_h);
 		
-		/// <summary>
-		/// Blocks
-		/// </summary>
-		/// <returns></returns>
+		/// Filling vector with blocks
 		for (int x = 0; x <= 7; x ++)
 		//for (int x = 0; x <= scaled_size_for_blocks_w * 8; x += scaled_size_for_blocks_w)
 		{
@@ -437,9 +437,22 @@ public:
 		//cout << "Current tick is: " << getTickCount() << endl;
 		//cout << "Current tmp_y is: " << tmp_y << endl;
 
-		if (state_of_game.game_timer >= 30000)
+		if (state_of_game.game_timer >= ghost_mode_interval)
 		{
 			state_of_game.ghost_mode = true;
+			state_of_game.game_timer = 0;
+			cout << "Ghost mode activated" << endl;
+		}
+		if (state_of_game.ghost_mode)
+		{
+			state_of_game.ghost_mode_timer++;
+			if (state_of_game.ghost_mode_timer >= ghost_mode_duration)
+			{
+				state_of_game.ghost_mode = false;
+				state_of_game.ghost_mode_timer = 0;
+				cout << "Ghost mode deactivated" << endl;
+				
+			}
 		}
 		state_of_game.game_timer++;
 		

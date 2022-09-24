@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <cstdlib>
 #include <vector>
+#include <random>
 
 #include "Framework.h"
 
@@ -21,7 +22,18 @@ using std::endl;
 using std::string;
 using std::vector;
 using std::for_each;
-//using namespace std::filesystem;
+
+void manageCLIwindow();
+void millisecondWait(unsigned ms);
+template <typename Prob = double> //This should go into .h
+bool generateRandomBoolean(const Prob p = 0.5)
+{
+	std::random_device rd;  //Will be used to obtain a seed for the random number engine
+	std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+	std::uniform_int_distribution<> distrib(0, 1);
+	return distrib(gen) < p;
+}
+
 
 struct Player
 {
@@ -73,7 +85,7 @@ struct WindowSize
 	mutable bool fullscreen = false;
 };
 
-struct colored_block
+struct ColoredBlock
 {
 	Sprite* full_hp_sprite;
 	Sprite* special_sprite_1;
@@ -81,15 +93,45 @@ struct colored_block
 	Sprite* hp_1_sprite;
 	Sprite* hp_2_sprite;
 	Sprite* hp_3_sprite;
+	
 	int x, y, x_max,y_max, width, height;
 	int hit_points;
-	bool is_alive;
+	//bool is_alive;
 	bool is_ghost;
+	bool has_buff;
 	int left() { return x ; }
 	int right() { return x + width; }
 	int top() { return y ; }
 	int bottom() { return y + height; }
+	ColoredBlock()
+	{
+		full_hp_sprite = nullptr;
+		special_sprite_1 = nullptr;
+		special_sprite_2 = nullptr;
+		hp_1_sprite = nullptr;
+		hp_2_sprite = nullptr;
+		hp_3_sprite = nullptr;
+		x = 0;
+		y = 0;
+		x_max = 0;
+		y_max = 0;
+		width = 0;
+		height = 0;
+		hit_points = 2;
+		is_ghost = false;
+		has_buff = false;
+		has_buff = generateRandomBoolean();
+	}
+};
 
+struct BuffBlock
+{
+	Sprite* buff_sprite;
+	int x, y, x_max, y_max, width, height;
+	int left() { return x; }
+	int right() { return x + width; }
+	int top() { return y; }
+	int bottom() { return y + height; }
 };
 
 int __argc;
@@ -99,29 +141,22 @@ static float resolution_param_h, resolution_param_w;
 static int resolution_h, resolution_w;
 extern WindowSize* userWindowSize = new WindowSize();
 // Function for managing CLI intput for window resolution
-void manageCLIwindow();
-void millisecondWait(unsigned ms);
-
 class State
 {
 public:
 	Player player;
 	Ball ball_object;
-	vector<colored_block> list_of_blocks;
+	vector<ColoredBlock> list_of_blocks;
 	Sprite* backgroud_sprite;
 	unsigned int game_timer;
 	unsigned int ghost_mode_timer;
-	int x_player, x_max_player;
-	int y_player, y_max_player;
 	bool game_over;
 	bool ghost_mode;
 	
 	State()
 	{
-		x_player = 0;
-		y_player = 0;
-		x_max_player = 0;
-		y_max_player = 0;
+		backgroud_sprite = createSprite(".\\data\\02-BACKGROUND.jpg");
+		player = Player();
 		ball_object.x = 400;
 		ball_object.y = 700;
 		ball_object.radius = 0;
@@ -162,7 +197,7 @@ public:
 			}
 		}
 	}
-	void manageblockCollision(colored_block* temp_struct_var)
+	void manageblockCollision(ColoredBlock* temp_struct_var)
 	{
 		/// Ball collision with blocks
 		if (!isIntersecting(temp_struct_var, this->ball_object)) return;
@@ -186,7 +221,7 @@ public:
 		cout << "HIT!" << temp_struct_var->hit_points << "HP left!" << endl;
 		//cout << "That is float tmp speed " << tmp << endl;
 	}
-	bool isIntersecting(colored_block* block, Ball ball)
+	bool isIntersecting(ColoredBlock* block, Ball ball)
 	{
 		return block->right() >= ball.left() && block->left() <= ball.right() && block->bottom() >= ball.top() && block->top() <= ball.bottom();
 	}
@@ -216,9 +251,9 @@ public:
 			game_over = true;
 		}
 		/// Ball colision with player
-		if (this->ball_object.x >= this->x_player and this->ball_object.x <= this->x_max_player)
+		if (this->ball_object.x >= this->player.x_player and this->ball_object.x <= this->player.x_max_player)
 		{
-			if (this->ball_object.y >= this->y_player and this->ball_object.y <= this->y_max_player)
+			if (this->ball_object.y >= this->player.y_player and this->ball_object.y <= this->player.y_max_player)
 			{
 				this->ball_object.y_direction *= -1;
 				this->ball_object.speed = int(sqrt(pow(this->ball_object.x_direction, 2) + pow(this->ball_object.y_direction, 2)) * player_collision_multiplier);
@@ -228,11 +263,11 @@ public:
 	}
 	void removeBlock(int amount_of_hp)
 	{
-		//std::remove_if(blocks.begin(), blocks.end(), [&](colored_block const& blocks) {
+		//std::remove_if(blocks.begin(), blocks.end(), [&](ColoredBlock const& blocks) {
 		//	return blocks.hit_points <= amount_of_hp;
 		//	});
 		this->list_of_blocks.erase(remove_if(begin(this->list_of_blocks), end(this->list_of_blocks),
-			[&](const colored_block& blocks)
+			[&](const ColoredBlock& blocks)
 			{
 				return blocks.hit_points <= amount_of_hp;
 			}),
@@ -261,12 +296,6 @@ public:
 	FRKey key_api;
 	FRMouseButton mouse_api;
 	State state_of_game;
-	Sprite* player_sprite;
-	Sprite* ball_sprite;
-	Sprite* backgroud_sprite;
-	//Sprite* test_sprite;
-	//int tmp_x = 300, tmp_y = 100;
-	//bool switcheroo = false;
 	int size_for_blocks_h, size_for_blocks_w;
 	int scaled_size_for_blocks_h, scaled_size_for_blocks_w;
 	int size_player_h, size_player_w;
@@ -277,6 +306,7 @@ public:
 	bool _init_time_mouse = false;
 	bool _init_time_key_left = false;
 	bool _init_time_key_right = false;
+	const bool draw_blocks_buffs = true;
 	
 	/// <summary>
 	/// Nothing can be called here. All initialization should be done in Init() method.
@@ -294,28 +324,33 @@ public:
 	virtual bool Init()
 	{
 		cout << "Init called" << endl;
-		player_sprite = createSprite(".\\data\\49-Breakout-Tiles.png");
-		ball_sprite = createSprite(".\\data\\62-Breakout-Tiles.png");
-		backgroud_sprite = createSprite(".\\data\\02-BACKGROUND.jpg");
-		getSpriteSize(player_sprite, size_player_w, size_player_h);
-		getSpriteSize(ball_sprite, size_ball_w, size_ball_h);
+		state_of_game.player.player_sprite = createSprite(".\\data\\49-Breakout-Tiles.png");
+		state_of_game.ball_object.ball_sprite = createSprite(".\\data\\62-Breakout-Tiles.png");
+		getSpriteSize(state_of_game.player.player_sprite, size_player_w, size_player_h);
+		getSpriteSize(state_of_game.ball_object.ball_sprite, size_ball_w, size_ball_h);
 		getScreenSize(resolution_w, resolution_h);
 		//This doesn't have to be recalculated each time - const?
 		resolution_param_w = resolution_w / static_cast<float>(800);
 		resolution_param_h = resolution_h / static_cast<float>(600);
-		setSpriteSize(backgroud_sprite, resolution_w, resolution_h);
+		setSpriteSize(state_of_game.backgroud_sprite, resolution_w, resolution_h);
 		
 		/// Filling vector with blocks
 		for (int x = 0; x <= 7; x ++)
-		//for (int x = 0; x <= scaled_size_for_blocks_w * 8; x += scaled_size_for_blocks_w)
 		{
 			for (int y = 0; y <= 5; y ++)
 			{
 				/// Ghost block
 				if ( x == y or x - 2 == y or x - 4 == y or x - 6 == y or y-2 == x or y-4 == x)
 				{
-					colored_block temp_struct{};
+					ColoredBlock temp_struct{};
+					if (temp_struct.has_buff and draw_blocks_buffs)
+					{
+						temp_struct.full_hp_sprite = createSprite(".\\data\\15-Breakout-Tiles.png");
+					}
+					else
+					{
 					temp_struct.full_hp_sprite = createSprite(".\\data\\05-Breakout-Tiles.png");
+					}
 					temp_struct.hp_1_sprite = createSprite(".\\data\\06-Breakout-Tiles.png");
 					temp_struct.special_sprite_1 = createSprite(".\\data\\11-Breakout-Tiles.png");
 					getSpriteSize(temp_struct.full_hp_sprite, size_for_blocks_w, size_for_blocks_h);
@@ -337,8 +372,15 @@ public:
 				/// Normal block
 				else
 				{
-					colored_block temp_struct{};
-					temp_struct.full_hp_sprite = createSprite(".\\data\\01-Breakout-Tiles.png");
+					ColoredBlock temp_struct{};
+					if (temp_struct.has_buff and draw_blocks_buffs)
+					{
+						temp_struct.full_hp_sprite = createSprite(".\\data\\15-Breakout-Tiles.png");
+					}
+					else
+					{
+						temp_struct.full_hp_sprite = createSprite(".\\data\\01-Breakout-Tiles.png");
+					}
 					temp_struct.hp_1_sprite = createSprite(".\\data\\02-Breakout-Tiles.png");
 					getSpriteSize(temp_struct.full_hp_sprite, size_for_blocks_w, size_for_blocks_h);
 					scaled_size_for_blocks_h = size_for_blocks_h / static_cast <float>(4) * resolution_param_h;
@@ -370,22 +412,20 @@ public:
 		state_of_game.ball_object.y = resolution_h - scaled_size_player_h - 20;
 		state_of_game.ball_object.x_direction = 0;
 		state_of_game.ball_object.y_direction = 0;
-		setSpriteSize(ball_sprite, scaled_size_ball_w, scaled_size_ball_h);
+		setSpriteSize(state_of_game.ball_object.ball_sprite, scaled_size_ball_w, scaled_size_ball_h);
 
 		/// <summary>
 		/// Player
 		/// </summary>
-		state_of_game.x_player = resolution_w / 2 - (size_player_w / 4);
-		state_of_game.y_player = resolution_h - scaled_size_player_h;
-		state_of_game.x_max_player = state_of_game.x_player + scaled_size_player_w;
-		state_of_game.y_max_player = state_of_game.y_player + scaled_size_player_h;
-		setSpriteSize(player_sprite, scaled_size_player_w, scaled_size_player_h);
+		state_of_game.player.x_player = resolution_w / 2 - (size_player_w / 4);
+		state_of_game.player.y_player = resolution_h - scaled_size_player_h;
+		state_of_game.player.x_max_player = state_of_game.player.x_player + scaled_size_player_w;
+		state_of_game.player.y_max_player = state_of_game.player.y_player + scaled_size_player_h;
+		setSpriteSize(state_of_game.player.player_sprite, scaled_size_player_w, scaled_size_player_h);
 		cout << "Current resolution is: " << resolution_h << "x" << resolution_w << endl;
 		cout << "Resolution scale is: " << resolution_param_h << "x" << resolution_param_w << endl;
 		cout << "Ticks from library initialization" << getTickCount() << endl;
 		state_of_game.game_over = false;
-		//test_sprite = createSprite(".\\data\\10-Breakout-Tiles.png");
-		//setSpriteSize(test_sprite, scaled_size_player_w, scaled_size_player_h);
 		return true;
 	}
 
@@ -400,22 +440,22 @@ public:
 		//?	Problem with ball sprite - speed is connected to ticks == FPS
 		//? Also draw sprite takes int instead of float so the speed cannot be '15%' or whatever since you cannot draw 0.15 pixels and speed 100 is impossible to follow.
 		//? only solution would be to assaign speed to ticks and then draw sprite based on that, draw on irregular intervals.
-		drawSprite(backgroud_sprite, 0, 0);
-		drawSprite(ball_sprite, state_of_game.ball_object.x , state_of_game.ball_object.y);
+		drawSprite(state_of_game.backgroud_sprite, 0, 0);
+		drawSprite(state_of_game.ball_object.ball_sprite, state_of_game.ball_object.x , state_of_game.ball_object.y);
 		///Manage keys pressed-released
-		drawSprite(player_sprite, state_of_game.x_player, state_of_game.y_player);
+		drawSprite(state_of_game.player.player_sprite, state_of_game.player.x_player, state_of_game.player.y_player);
 		state_of_game.drawSpriteStruct();
 		state_of_game.manageBallCollision(&scaled_size_ball_w, &scaled_size_ball_h, &resolution_w, &resolution_h);
 		state_of_game.manageBallSpeed();
 		if (_init_time_key_left)
 		{
-			state_of_game.x_player -= 1;
-			state_of_game.x_max_player -= 1;
+			state_of_game.player.x_player -= 1;
+			state_of_game.player.x_max_player -= 1;
 		}
 		if (_init_time_key_right)
 		{
-			state_of_game.x_player += 1;
-			state_of_game.x_max_player += 1;
+			state_of_game.player.x_player += 1;
+			state_of_game.player.x_max_player += 1;
 		}
 		state_of_game.removeBlock(0);
 		state_of_game.victory();
@@ -544,6 +584,7 @@ public:
  	std::chrono::milliseconds dura(ms);
  	std::this_thread::sleep_for(dura);
  }
+
 
  // Function for managing CLI intput for window resolution
 void manageCLIwindow()

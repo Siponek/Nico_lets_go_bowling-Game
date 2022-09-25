@@ -1,6 +1,6 @@
 /// <summary>
 /// Prototype of game to be run with custom SDL2 library. Code from custom library is hidden / cannot see what SDL2 components are being used.\
-/// Bug could possibly be that the spirtes are drown from weird coordinates. 
+/// Bug could possibly be that the spirtes are drown from weird coordinates.
 /// </summary>
 #include <iostream>
 #include <filesystem>
@@ -35,7 +35,7 @@ bool generateRandomBoolean(const Prob p = 0.5)
 }
 
 
-struct Player
+typedef struct Player
 {
 	Sprite* player_sprite;
 	int x_player, x_max_player;
@@ -58,7 +58,7 @@ struct Player
 		buffed = 0;
 	}
 	
-};
+} Player ;
 
 struct Ball
 {
@@ -95,7 +95,7 @@ struct WindowSize
 	mutable bool fullscreen = false;
 };
 
-struct ColoredBlock
+typedef struct ColoredBlock
 {
 	Sprite* full_hp_sprite;
 	Sprite* special_sprite_1;
@@ -107,7 +107,6 @@ struct ColoredBlock
 	int x, y, x_max,y_max, width, height;
 	int hit_points;
 	int id_block;
-	//bool is_alive;
 	bool is_ghost;
 	bool has_buff;
 	int left() { return x ; }
@@ -133,9 +132,9 @@ struct ColoredBlock
 		is_ghost = false;
 		has_buff = generateRandomBoolean();
 	}
-};
+} ColoredBlock;
 
-struct BuffBlock
+typedef struct BuffBlock
 {
 	Sprite* buff_sprite;
 	int x, y, x_max, y_max, width, height, id_buff;
@@ -156,7 +155,7 @@ struct BuffBlock
 		height = 0;
 		is_drawn = false;
 	}
-};
+}BuffBlock;
 
 int __argc;
 char** __argv;
@@ -236,7 +235,7 @@ public:
 	void manageblockCollision(ColoredBlock* temp_struct_var)
 	{
 		/// Ball collision with blocks
-		if (!isIntersecting(temp_struct_var, this->ball_object)) return;
+		if (!isIntersectingPointer(temp_struct_var, &this->ball_object)) return;
 		/// Calculating what is the position of the ball depending on the distance from left-right top-bot
 		int overlapLeft{ this->ball_object.right() - temp_struct_var->left() };
 		int overlapRight{ temp_struct_var->right() - this->ball_object.left() };
@@ -299,7 +298,7 @@ public:
 		
 		for (auto& temp_buff : this->list_of_buff_blocks)
 		{
-			if (isIntersecting(temp_buff, this->player))
+			if (isIntersectingNormal(temp_buff, this->player))
 			{
 				temp_buff.is_drawn = false;
 			}
@@ -349,11 +348,18 @@ public:
 			}
 		}
 	};
-	template <class T1, class T2>
-	bool isIntersecting(T1& objA, T2& mB) noexcept
+	
+	template <typename  T1, typename  T2>
+	bool isIntersectingNormal(T1 objA, T2 objB) noexcept
 	{
 		return objA.right() >= objB.left() && objA.left() <= objB.right() &&
 			objA.bottom() >= objB.top() && objA.top() <= objB.bottom();
+	};
+	template <typename  T1, typename  T2>
+	bool isIntersectingPointer(T1* objA, T2* objB) noexcept
+	{
+		return objA->right() >= objB->left() && objA->left() <= objB->right() &&
+			objA->bottom() >= objB->top() && objA->top() <= objB->bottom();
 	};
 	
 };

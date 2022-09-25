@@ -60,7 +60,7 @@ typedef struct Player
 	
 } Player ;
 
-struct Ball
+typedef struct Ball
 {
 	Sprite* ball_sprite;
 	int x = 1;
@@ -85,7 +85,7 @@ struct Ball
 		y_direction = 0;
 		isActive = false;
 	};
-};
+}Ball;
 
 //? Temporarty struct for managing window of the game
 struct WindowSize
@@ -137,7 +137,7 @@ typedef struct ColoredBlock
 typedef struct BuffBlock
 {
 	Sprite* buff_sprite;
-	int x, y, x_max, y_max, width, height, id_buff;
+	int x, y, x_max, y_max, width, height, id_buff, y_direction, speed;
 	bool is_drawn;
 	int left() { return x; }
 	int right() { return x + width; }
@@ -153,6 +153,8 @@ typedef struct BuffBlock
 		y_max = 0;
 		width = 0;
 		height = 0;
+		y_direction = 1;
+		speed = 0;
 		is_drawn = false;
 	}
 }BuffBlock;
@@ -193,12 +195,8 @@ public:
 		game_over = false;
 		ghost_mode = false;
 	}
-	/// <summary>
+	
 	/// Funtion to take a struct with sprite and draw it. Used for auto "for c: vector" loop 
-	/// </summary>
-	/// <param name="_state_of_game"></param>
-	/// <param name="_scaled_size_ball_w"></param>
-	/// <param name="_scaled_size_ball_h"></param>
 	void drawSpriteStructBlocks()
 	{
 		for (auto& temp_struct_var : this->list_of_blocks)
@@ -262,6 +260,17 @@ public:
 		this->ball_object.x += (this->ball_object.x_direction * this->ball_object.speed);
 		this->ball_object.y += (this->ball_object.y_direction * this->ball_object.speed);
 	}
+	void manageBuffSpeed()
+	{
+		for (auto& temp_buff : this->list_of_buff_blocks)
+		{
+			if (temp_buff.is_drawn)
+			{
+				temp_buff.y += temp_buff.speed;
+			}
+		}
+	}
+	
 	/// Funtion to manage ball collision with screen borders //TODO To many things in one function
 	void manageBallCollision(int* _scaled_size_ball_w, int* _scaled_size_ball_h, int* resolution_width, int* resolution_height)
 	{
@@ -292,10 +301,9 @@ public:
 			}
 		}
 	}
-	/// Player collision with buff
+	/// Player collision with BuffBlock
 	void manageBuffCollision()
 	{
-		
 		for (auto& temp_buff : this->list_of_buff_blocks)
 		{
 			if (isIntersectingNormal(temp_buff, this->player))
@@ -303,11 +311,23 @@ public:
 				temp_buff.is_drawn = false;
 			}
 		}
-		
 	}
 	void removeBlock(int amount_of_hp)
 	{
 		_spawnBuffs(amount_of_hp);
+		/// In case of adding new level then this is for the cleanup
+		for (auto& block : this->list_of_blocks)
+		{
+			if (block.hit_points <= amount_of_hp)
+			{
+				destroySprite(block.full_hp_sprite);
+				destroySprite(block.hp_1_sprite);
+				if (block.is_ghost)
+				{
+					destroySprite(block.special_sprite_1);
+				}
+			}
+		}
 		this->list_of_blocks.erase(remove_if(this->list_of_blocks.begin(), this->list_of_blocks.end(),
 			[&](const ColoredBlock& blocks)
 			{
@@ -315,6 +335,23 @@ public:
 			}),
 			end(this->list_of_blocks));
 		//Spawn buff
+	}
+	
+	void removeBuffBlocks(int edge_of_the_screen)
+	{
+		for (auto& temp_buff : this->list_of_buff_blocks)
+		{
+			if (temp_buff.y >= edge_of_the_screen)
+			{
+				destroySprite(temp_buff.buff_sprite);
+			}
+		}
+		this->list_of_buff_blocks.erase(remove_if(this->list_of_buff_blocks.begin(), this->list_of_buff_blocks.end(),
+			[&](const BuffBlock& temp_buff)
+			{
+				return temp_buff.y >= edge_of_the_screen;
+			}),
+			end(this->list_of_buff_blocks));
 	}
 	
 	void victory()
@@ -330,6 +367,12 @@ public:
 		}
 		game_over = true;
 	}
+	
+
+/// <summary>
+/// PRIVATE SECTION
+/// </summary>
+	private:
 	void _spawnBuffs(int amount_of_hp)
 	{
 		for (auto& temp_struct_var : this->list_of_blocks)
@@ -343,6 +386,7 @@ public:
 						cout << "ID: "<< temp_buff.id_buff<< "Block ID: " << temp_struct_var.id_block << " Buffs are drawn!" << endl;
 						
 						temp_buff.is_drawn = true;
+						temp_buff.speed = 1;
 					}
 				}
 			}
@@ -568,9 +612,9 @@ public:
 	//Tick each moment - need to re-draw everything per frame
 	virtual bool Tick()
 	{
-		//?	Problem with ball sprite - speed is connected to ticks == FPS
-		//? Also draw sprite takes int instead of float so the speed cannot be '15%' or whatever since you cannot draw 0.15 pixels and speed 100 is impossible to follow.
-		//? only solution would be to assaign speed to ticks and then draw sprite based on that, draw on irregular intervals.
+		///?	Problem with ball sprite - speed is connected to ticks == FPS
+		///? Also draw sprite takes int instead of float so the speed cannot be '15%' or whatever since you cannot draw 0.15 pixels and speed 100 is impossible to follow.
+		///? only solution would be to assaign speed to ticks and then draw sprite based on that, draw on irregular intervals.
 		drawSprite(this->state_of_game.backgroud_sprite, 0, 0);
 		drawSprite(this->state_of_game.ball_object.ball_sprite, this->state_of_game.ball_object.x , this->state_of_game.ball_object.y);
 		drawSprite(this->state_of_game.player.player_sprite, this->state_of_game.player.x_player, this->state_of_game.player.y_player);
@@ -578,6 +622,7 @@ public:
 		this->state_of_game.drawSpriteStructBuff();
 		this->state_of_game.manageBallCollision(&scaled_size_ball_w, &scaled_size_ball_h, &resolution_w, &resolution_h);
 		this->state_of_game.manageBallSpeed();
+		this->state_of_game.manageBuffSpeed();
 		///Manage keys pressed-released
 		if (_init_time_key_left)
 		{
@@ -591,6 +636,7 @@ public:
 		}
 		/// Cleanup of "dead" blocks and spawn buffs in their place
 		this->state_of_game.removeBlock(0);
+		this->state_of_game.removeBuffBlocks(resolution_w);
 		this->state_of_game.victory();
 		if (this->state_of_game.game_over)
 		{

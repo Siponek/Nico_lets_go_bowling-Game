@@ -40,6 +40,12 @@ struct Player
 	Sprite* player_sprite;
 	int x_player, x_max_player;
 	int y_player, y_max_player;
+	int width, height;
+	int buffed;
+	int left() { return x_player; }
+	int right() { return x_player + width; }
+	int top() { return y_player; }
+	int bottom() { return y_player + height; }
 	Player()
 	{
 		player_sprite = nullptr;
@@ -47,7 +53,11 @@ struct Player
 		x_max_player = 0;
 		y_player = 0;
 		y_max_player = 0;
+		width = 0;
+		height = 0;
+		buffed = 0;
 	}
+	
 };
 
 struct Ball
@@ -244,7 +254,7 @@ public:
 		temp_struct_var->hit_points -= 1;
 		double tmp = (sqrt(pow(this->ball_object.x_direction, 2) + pow(this->ball_object.y_direction, 2)) * block_collision_multiplier);
 		this->ball_object.speed = int(sqrt(pow(this->ball_object.x_direction, 2) + pow(this->ball_object.y_direction, 2)) * block_collision_multiplier);
-		cout << "HIT!" << temp_struct_var->hit_points << "HP left!" << endl;
+		//cout << "HIT!" << temp_struct_var->hit_points << "HP left!" << endl;
 		//cout << "That is float tmp speed " << tmp << endl;
 	}
 	void manageBallSpeed()
@@ -283,6 +293,19 @@ public:
 			}
 		}
 	}
+	/// Player collision with buff
+	void manageBuffCollision()
+	{
+		
+		for (auto& temp_buff : this->list_of_buff_blocks)
+		{
+			if (isIntersecting(temp_buff, this->player))
+			{
+				temp_buff.is_drawn = false;
+			}
+		}
+		
+	}
 	void removeBlock(int amount_of_hp)
 	{
 		_spawnBuffs(amount_of_hp);
@@ -308,7 +331,6 @@ public:
 		}
 		game_over = true;
 	}
-	private:
 	void _spawnBuffs(int amount_of_hp)
 	{
 		for (auto& temp_struct_var : this->list_of_blocks)
@@ -319,17 +341,20 @@ public:
 				{
 					if (temp_buff.id_buff == temp_struct_var.id_block)
 					{
-						cout << "					Buff are drawn!" << endl;
+						cout << "ID: "<< temp_buff.id_buff<< "Block ID: " << temp_struct_var.id_block << " Buffs are drawn!" << endl;
+						
 						temp_buff.is_drawn = true;
 					}
 				}
 			}
 		}
 	};
-	bool isIntersecting(ColoredBlock* block, Ball ball)
+	template <class T1, class T2>
+	bool isIntersecting(T1& objA, T2& mB) noexcept
 	{
-		return block->right() >= ball.left() && block->left() <= ball.right() && block->bottom() >= ball.top() && block->top() <= ball.bottom();
-	}
+		return objA.right() >= objB.left() && objA.left() <= objB.right() &&
+			objA.bottom() >= objB.top() && objA.top() <= objB.bottom();
+	};
 	
 };
 
@@ -339,11 +364,14 @@ class MyFramework : public Framework
 public:
 	State state_of_game;
 	int size_for_blocks_h = 0, size_for_blocks_w = 0;
+	int size_for_buffs_h = 0, size_for_buffs_w = 0;
 	int scaled_size_for_blocks_h = 0, scaled_size_for_blocks_w = 0;
+	int scaled_size_for_buffs_h = 0, scaled_size_for_buffs_w = 0;
 	int size_player_h = 0, size_player_w = 0;
 	int scaled_size_player_h = 0, scaled_size_player_w = 0;
 	int size_ball_h = 0, size_ball_w = 0;
 	int scaled_size_ball_h = 0, scaled_size_ball_w = 0;
+	int current_id_index = 0;
 	bool _init_arena = false;
 	bool _init_time_mouse = false;
 	bool _init_time_key_left = false;
@@ -366,17 +394,17 @@ public:
 	virtual bool Init()
 	{
 		cout << "Init called" << endl;
-		state_of_game.player.player_sprite = createSprite(".\\data\\49-Breakout-Tiles.png");
-		state_of_game.ball_object.ball_sprite = createSprite(".\\data\\62-Breakout-Tiles.png");
-		state_of_game.backgroud_sprite = createSprite(".\\data\\02-BACKGROUND.jpg");
-		getSpriteSize(state_of_game.player.player_sprite, size_player_w, size_player_h);
-		getSpriteSize(state_of_game.ball_object.ball_sprite, size_ball_w, size_ball_h);
+		this->state_of_game.player.player_sprite = createSprite(".\\data\\49-Breakout-Tiles.png");
+		this->state_of_game.ball_object.ball_sprite = createSprite(".\\data\\62-Breakout-Tiles.png");
+		this->state_of_game.backgroud_sprite = createSprite(".\\data\\02-BACKGROUND.jpg");
+		getSpriteSize(this->state_of_game.player.player_sprite, size_player_w, size_player_h);
+		getSpriteSize(this->state_of_game.ball_object.ball_sprite, size_ball_w, size_ball_h);
 		getScreenSize(resolution_w, resolution_h);
 		//This doesn't have to be recalculated each time - const?
 		resolution_param_w = resolution_w / static_cast<float>(800);
 		resolution_param_h = resolution_h / static_cast<float>(600);
-		setSpriteSize(state_of_game.backgroud_sprite, resolution_w, resolution_h);
-		
+		setSpriteSize(this->state_of_game.backgroud_sprite, resolution_w, resolution_h);
+		current_id_index = 0;
 		/// Filling vector with blocks
 		for (int x = 0; x <= 7; x ++)
 		{
@@ -388,27 +416,46 @@ public:
 					ColoredBlock temp_struct{};
 					if (temp_struct.has_buff and draw_blocks_buffs)
 					{
+						/// BLOCK PART
 						temp_struct.full_hp_sprite = createSprite(".\\data\\15-Breakout-Tiles.png");
-						temp_struct.id_block = x + y * 10;
-						BuffBlock temp_buff{};
-						temp_buff.buff_sprite = createSprite(".\\data\\59-Breakout-Tiles.png");
-						getSpriteSize(temp_buff.buff_sprite, size_for_blocks_w, size_for_blocks_h);
+						temp_struct.hp_1_sprite = createSprite(".\\data\\06-Breakout-Tiles.png");
+						temp_struct.special_sprite_1 = createSprite(".\\data\\11-Breakout-Tiles.png");
+						getSpriteSize(temp_struct.full_hp_sprite, size_for_blocks_w, size_for_blocks_h);
 						scaled_size_for_blocks_h = size_for_blocks_h / static_cast <float>(4) * resolution_param_h;
 						scaled_size_for_blocks_w = size_for_blocks_w / static_cast <float>(4) * resolution_param_w;
-						setSpriteSize(temp_buff.buff_sprite, scaled_size_for_blocks_w, scaled_size_for_blocks_h);
-						temp_buff.x = x * scaled_size_for_blocks_w;
-						temp_buff.y = y * scaled_size_for_blocks_h;
-						temp_buff.width = x + scaled_size_for_blocks_w;
-						temp_buff.height = y + scaled_size_for_blocks_h;
+						setSpriteSize(temp_struct.full_hp_sprite, scaled_size_for_blocks_w, scaled_size_for_blocks_h);
+						setSpriteSize(temp_struct.special_sprite_1, scaled_size_for_blocks_w, scaled_size_for_blocks_h);
+						setSpriteSize(temp_struct.hp_1_sprite, scaled_size_for_blocks_w, scaled_size_for_blocks_h);
+						temp_struct.x = x * scaled_size_for_blocks_w;
+						temp_struct.y = y * scaled_size_for_blocks_h;
+						temp_struct.width = x + scaled_size_for_blocks_w;
+						temp_struct.height = y + scaled_size_for_blocks_h;
+						temp_struct.x_max = temp_struct.x + temp_struct.width;
+						temp_struct.y_max = temp_struct.y + temp_struct.height;
+						temp_struct.hit_points = 2;
+						temp_struct.is_ghost = true;
+						temp_struct.id_block = current_id_index;
+						/// BUFF PART
+						BuffBlock temp_buff{};
+						temp_buff.buff_sprite = createSprite(".\\data\\59-Breakout-Tiles.png");
+						getSpriteSize(temp_buff.buff_sprite, size_for_buffs_w, size_for_buffs_h);
+						scaled_size_for_buffs_w = size_for_buffs_w / static_cast <float>(4) * resolution_param_w;
+						scaled_size_for_buffs_h = size_for_buffs_h / static_cast <float>(4) * resolution_param_h;
+						setSpriteSize(temp_buff.buff_sprite, scaled_size_for_buffs_w, scaled_size_for_buffs_h);
+						temp_buff.x = x * scaled_size_for_blocks_w + (scaled_size_for_blocks_w / 4 );
+						temp_buff.y = y * scaled_size_for_blocks_h + (scaled_size_for_blocks_h / 4 );
+						temp_buff.width = x + scaled_size_for_buffs_w;
+						temp_buff.height = y + scaled_size_for_buffs_h;
 						temp_buff.x_max = temp_buff.x + temp_buff.width;
 						temp_buff.y_max = temp_buff.y + temp_buff.height;
 						temp_buff.id_buff = temp_struct.id_block;
-						state_of_game.list_of_buff_blocks.push_back(temp_buff);
-					}
+						
+						this->state_of_game.list_of_buff_blocks.push_back(temp_buff);
+						this->state_of_game.list_of_blocks.push_back(temp_struct);
+						current_id_index += 2;					}
 					else
 					{
 					temp_struct.full_hp_sprite = createSprite(".\\data\\05-Breakout-Tiles.png");
-					}
 					temp_struct.hp_1_sprite = createSprite(".\\data\\06-Breakout-Tiles.png");
 					temp_struct.special_sprite_1 = createSprite(".\\data\\11-Breakout-Tiles.png");
 					getSpriteSize(temp_struct.full_hp_sprite, size_for_blocks_w, size_for_blocks_h);
@@ -425,11 +472,13 @@ public:
 					temp_struct.y_max = temp_struct.y + temp_struct.height;
 					temp_struct.hit_points = 2;
 					temp_struct.is_ghost = true;
-					state_of_game.list_of_blocks.push_back(temp_struct); 
+					this->state_of_game.list_of_blocks.push_back(temp_struct); 
+					}
 				}
 				/// Normal block
 				else
 				{
+					/// BLOCK PART
 					ColoredBlock temp_struct{};
 					if (temp_struct.has_buff and draw_blocks_buffs)
 					{
@@ -453,8 +502,26 @@ public:
 					temp_struct.y_max = temp_struct.y + temp_struct.height;
 					temp_struct.hit_points = 2;
 					temp_struct.is_ghost = false;
-					state_of_game.list_of_blocks.push_back(temp_struct);
+					temp_struct.id_block = current_id_index;
+					/// BUFF PART
+					BuffBlock temp_buff{};
+					temp_buff.buff_sprite = createSprite(".\\data\\59-Breakout-Tiles.png");
+					getSpriteSize(temp_buff.buff_sprite, size_for_buffs_w, size_for_buffs_h);
+					scaled_size_for_buffs_w = size_for_buffs_w / static_cast <float>(4) * resolution_param_w;
+					scaled_size_for_buffs_h = size_for_buffs_h / static_cast <float>(4) * resolution_param_h;
+					setSpriteSize(temp_buff.buff_sprite, scaled_size_for_buffs_w, scaled_size_for_buffs_h);
+					temp_buff.x = x * scaled_size_for_blocks_w + (scaled_size_for_blocks_w / 4);
+					temp_buff.y = y * scaled_size_for_blocks_h + (scaled_size_for_blocks_h / 4);
+					temp_buff.width = x + scaled_size_for_buffs_w;
+					temp_buff.height = y + scaled_size_for_buffs_h;
+					temp_buff.x_max = temp_buff.x + temp_buff.width;
+					temp_buff.y_max = temp_buff.y + temp_buff.height;
+					temp_buff.id_buff = temp_struct.id_block;
+
+					this->state_of_game.list_of_buff_blocks.push_back(temp_buff);
+					this->state_of_game.list_of_blocks.push_back(temp_struct);
 				}
+				current_id_index += 2;
 			}
 		}
 		/// <summary>
@@ -465,25 +532,25 @@ public:
 		scaled_size_ball_h = size_ball_h / static_cast <float>(4) * resolution_param_h;
 		scaled_size_ball_w = size_ball_w / static_cast <float>(4) * resolution_param_w;
 		//Does not have to be round, but w/e
-		state_of_game.ball_object.radius = scaled_size_ball_w / 2;
-		state_of_game.ball_object.x = resolution_w / 2 - (size_player_w / 4) ;
-		state_of_game.ball_object.y = resolution_h - scaled_size_player_h - 20;
-		state_of_game.ball_object.x_direction = 0;
-		state_of_game.ball_object.y_direction = 0;
-		setSpriteSize(state_of_game.ball_object.ball_sprite, scaled_size_ball_w, scaled_size_ball_h);
+		this->state_of_game.ball_object.radius = scaled_size_ball_w / 2;
+		this->state_of_game.ball_object.x = resolution_w / 2 - (size_player_w / 4) ;
+		this->state_of_game.ball_object.y = resolution_h - scaled_size_player_h - 20;
+		this->state_of_game.ball_object.x_direction = 0;
+		this->state_of_game.ball_object.y_direction = 0;
+		setSpriteSize(this->state_of_game.ball_object.ball_sprite, scaled_size_ball_w, scaled_size_ball_h);
 
 		/// <summary>
 		/// Player
 		/// </summary>
-		state_of_game.player.x_player = resolution_w / 2 - (size_player_w / 4);
-		state_of_game.player.y_player = resolution_h - scaled_size_player_h;
-		state_of_game.player.x_max_player = state_of_game.player.x_player + scaled_size_player_w;
-		state_of_game.player.y_max_player = state_of_game.player.y_player + scaled_size_player_h;
-		setSpriteSize(state_of_game.player.player_sprite, scaled_size_player_w, scaled_size_player_h);
+		this->state_of_game.player.x_player = resolution_w / 2 - (size_player_w / 4);
+		this->state_of_game.player.y_player = resolution_h - scaled_size_player_h;
+		this->state_of_game.player.x_max_player = this->state_of_game.player.x_player + scaled_size_player_w;
+		this->state_of_game.player.y_max_player = this->state_of_game.player.y_player + scaled_size_player_h;
+		setSpriteSize(this->state_of_game.player.player_sprite, scaled_size_player_w, scaled_size_player_h);
 		cout << "Current resolution is: " << resolution_h << "x" << resolution_w << endl;
 		cout << "Resolution scale is: " << resolution_param_h << "x" << resolution_param_w << endl;
 		cout << "Ticks from library initialization" << getTickCount() << endl;
-		state_of_game.game_over = false;
+		this->state_of_game.game_over = false;
 		return true;
 	}
 
@@ -498,48 +565,72 @@ public:
 		//?	Problem with ball sprite - speed is connected to ticks == FPS
 		//? Also draw sprite takes int instead of float so the speed cannot be '15%' or whatever since you cannot draw 0.15 pixels and speed 100 is impossible to follow.
 		//? only solution would be to assaign speed to ticks and then draw sprite based on that, draw on irregular intervals.
-		drawSprite(state_of_game.backgroud_sprite, 0, 0);
-		drawSprite(state_of_game.ball_object.ball_sprite, state_of_game.ball_object.x , state_of_game.ball_object.y);
+		drawSprite(this->state_of_game.backgroud_sprite, 0, 0);
+		drawSprite(this->state_of_game.ball_object.ball_sprite, this->state_of_game.ball_object.x , this->state_of_game.ball_object.y);
+		drawSprite(this->state_of_game.player.player_sprite, this->state_of_game.player.x_player, this->state_of_game.player.y_player);
+		this->state_of_game.drawSpriteStructBlocks();
+		this->state_of_game.drawSpriteStructBuff();
+		this->state_of_game.manageBallCollision(&scaled_size_ball_w, &scaled_size_ball_h, &resolution_w, &resolution_h);
+		this->state_of_game.manageBallSpeed();
 		///Manage keys pressed-released
-		drawSprite(state_of_game.player.player_sprite, state_of_game.player.x_player, state_of_game.player.y_player);
-		state_of_game.drawSpriteStructBlocks();
-		state_of_game.drawSpriteStructBuff();
-		state_of_game.manageBallCollision(&scaled_size_ball_w, &scaled_size_ball_h, &resolution_w, &resolution_h);
-		state_of_game.manageBallSpeed();
 		if (_init_time_key_left)
 		{
-			state_of_game.player.x_player -= 1;
-			state_of_game.player.x_max_player -= 1;
+			this->state_of_game.player.x_player -= 1;
+			this->state_of_game.player.x_max_player -= 1;
 		}
 		if (_init_time_key_right)
 		{
-			state_of_game.player.x_player += 1;
-			state_of_game.player.x_max_player += 1;
+			this->state_of_game.player.x_player += 1;
+			this->state_of_game.player.x_max_player += 1;
 		}
-		state_of_game.removeBlock(0);
-		state_of_game.victory();
-		if (state_of_game.game_over)
+		/// Cleanup of "dead" blocks and spawn buffs in their place
+		this->state_of_game.removeBlock(0);
+		this->state_of_game.victory();
+		if (this->state_of_game.game_over)
 		{
+			/// Memory CLEANUP
+			/// Potential memory leak depending if destroySrpite() is needed to free the memory.
 			cout << "RESETING" << endl;
+			for (auto& block : this->state_of_game.list_of_blocks)
+			{
+				destroySprite(block.full_hp_sprite);
+				destroySprite(block.hp_1_sprite);
+				if (block.is_ghost)
+				{
+					destroySprite(block.special_sprite_1);
+				}
+			}
+			for (auto& buff : this->state_of_game.list_of_buff_blocks)
+			{
+				destroySprite(buff.buff_sprite);
+			}
+			destroySprite(this->state_of_game.ball_object.ball_sprite);
+			destroySprite(this->state_of_game.player.player_sprite);
+			destroySprite(this->state_of_game.backgroud_sprite);
+			this->state_of_game.list_of_blocks.clear();
+			this->state_of_game.list_of_buff_blocks.clear();
+			//this->this->state_of_game.list_of_blocks.clear();
+			//this->this->state_of_game.list_of_buff_blocks.clear();
+				
 			this->Init();
 		}
-		if (state_of_game.game_timer >= ghost_mode_interval)
+		if (this->state_of_game.game_timer >= ghost_mode_interval)
 		{
-			state_of_game.ghost_mode = true;
-			state_of_game.game_timer = 0;
+			this->state_of_game.ghost_mode = true;
+			this->state_of_game.game_timer = 0;
 			cout << "Ghost mode activated" << endl;
 		}
-		if (state_of_game.ghost_mode)
+		if (this->state_of_game.ghost_mode)
 		{
-			state_of_game.ghost_mode_timer++;
-			if (state_of_game.ghost_mode_timer >= ghost_mode_duration)
+			this->state_of_game.ghost_mode_timer++;
+			if (this->state_of_game.ghost_mode_timer >= ghost_mode_duration)
 			{
-				state_of_game.ghost_mode = false;
-				state_of_game.ghost_mode_timer = 0;
+				this->state_of_game.ghost_mode = false;
+				this->state_of_game.ghost_mode_timer = 0;
 				cout << "Ghost mode deactivated" << endl;
 			}
 		}
-		state_of_game.game_timer++;
+		this->state_of_game.game_timer++;
 		
 		return false;
 	}
@@ -549,29 +640,26 @@ public:
 		//Blokcing the user input either to XY 1,-1 or -1,-1 since you cannot control the ball movement
 		if(_init_time_mouse == true)
 		{
-			state_of_game.ball_object.x = x - (scaled_size_ball_w / 2);
-			state_of_game.ball_object.y = y - (scaled_size_ball_h / 2);
-			state_of_game.ball_object.x_direction = xrelative;
+			this->state_of_game.ball_object.x = x - (scaled_size_ball_w / 2);
+			this->state_of_game.ball_object.y = y - (scaled_size_ball_h / 2);
+			this->state_of_game.ball_object.x_direction = xrelative;
 			//Y direction is inverted in window
-			state_of_game.ball_object.y_direction = -abs(yrelative);
+			this->state_of_game.ball_object.y_direction = -abs(yrelative);
 			//checks for the first time mouse is moved to give smallest speed
-			if (state_of_game.ball_object.x_direction == 0)
-				state_of_game.ball_object.x_direction = 1;
-			//else if (state_of_game.ball_object.x_direction < -1)
-			//	state_of_game.ball_object.x_direction = -1;
-			//This doesn't need to be checked on positive, because of {-abs()}
-			if (state_of_game.ball_object.y_direction >= 0)
-				state_of_game.ball_object.y_direction = -1;
-			state_of_game.ball_object.speed = int(sqrt(pow(state_of_game.ball_object.x_direction, 2) + pow(state_of_game.ball_object.y_direction, 2)));
-		cout << "Launch speed is: " << state_of_game.ball_object.speed<< endl;
-		cout << "Direction XY : " << state_of_game.ball_object.x_direction << "," << state_of_game.ball_object.y_direction << endl;
+			if (this->state_of_game.ball_object.x_direction == 0)
+				this->state_of_game.ball_object.x_direction = 1;
+			if (this->state_of_game.ball_object.y_direction >= 0)
+				this->state_of_game.ball_object.y_direction = -1;
+			this->state_of_game.ball_object.speed = int(sqrt(pow(this->state_of_game.ball_object.x_direction, 2) + pow(this->state_of_game.ball_object.y_direction, 2)));
+		//cout << "Launch speed is: " << state_of_game.ball_object.speed<< endl;
+		//cout << "Direction XY : " << state_of_game.ball_object.x_direction << "," << state_of_game.ball_object.y_direction << endl;
 		_init_time_mouse = false;
 		}
 	}
 
 	virtual void onMouseButtonClick(FRMouseButton button, bool isReleased)
 	{
-		cout << "Mouse button clicked" << endl;
+		//cout << "Mouse button clicked" << endl;
 		if (int(button) == 0 and isReleased == false)
 		{
 			_init_time_mouse = true;
@@ -606,7 +694,7 @@ public:
 
 	virtual const char *GetTitle() override
 	{
-		cout << "GetTitle function called" << endl;
+		//cout << "GetTitle function called" << endl;
 		return "Arcanoid fucking sucks";
 	}
 };

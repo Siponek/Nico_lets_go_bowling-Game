@@ -275,6 +275,7 @@ public:
 			if (temp_buff.is_drawn)
 			{
 				temp_buff.y += temp_buff.speed;
+				temp_buff.y_max += temp_buff.speed;
 			}
 		}
 	}
@@ -328,14 +329,29 @@ public:
 			//	//	temp_buff.speed = 0;
 			//	//}
 			//}
-			for (auto temp_block : this->list_of_blocks)
+			for (auto& temp_block : this->list_of_blocks)
 			{
-				if (isIntersectingNormal(temp_buff, temp_block))
+				if (temp_buff.left() <= temp_block.right() and temp_buff.right() >= temp_block.left())
+				{
 					temp_buff.speed = 0;
+					if (temp_buff.bottom() >= temp_block.top())
+					{
+						temp_buff.speed = 2;
+					}
+				}
 				else
-					temp_buff.speed = 1;
+				{
+					continue;
+				}
+				//if (temp_buff.bottom() >= temp_block.top() and temp_buff.left() >= temp_block.left() and temp_buff.right() <= temp_block.right())
+				//	temp_buff.speed = 0;
+				//else
+				//	temp_buff.speed = 1;
+				//if (isIntersectingNormal(temp_buff, temp_block))
+				//	temp_buff.speed = 0;
+				//else
+				//	temp_buff.speed = 2;
 			}
-
 			if (isIntersectingNormal(temp_buff, this->player))
 			{
 					if (temp_buff.positive)

@@ -308,7 +308,9 @@ public:
 		{
 			if (isIntersectingNormal(temp_buff, this->player))
 			{
-				temp_buff.is_drawn = false;
+				cout << "manageBuffCollision works!" << endl;
+				temp_buff.speed *= -2;
+				//temp_buff.is_drawn = false;
 			}
 		}
 	}
@@ -594,8 +596,10 @@ public:
 		/// </summary>
 		this->state_of_game.player.x_player = resolution_w / 2 - (size_player_w / 4);
 		this->state_of_game.player.y_player = resolution_h - scaled_size_player_h;
-		this->state_of_game.player.x_max_player = this->state_of_game.player.x_player + scaled_size_player_w;
-		this->state_of_game.player.y_max_player = this->state_of_game.player.y_player + scaled_size_player_h;
+		this->state_of_game.player.width = scaled_size_player_w;
+		this->state_of_game.player.height = scaled_size_player_h;
+		this->state_of_game.player.x_max_player = this->state_of_game.player.x_player + this->state_of_game.player.width;
+		this->state_of_game.player.y_max_player = this->state_of_game.player.y_player + this->state_of_game.player.height;
 		setSpriteSize(this->state_of_game.player.player_sprite, scaled_size_player_w, scaled_size_player_h);
 		cout << "Current resolution is: " << resolution_h << "x" << resolution_w << endl;
 		cout << "Resolution scale is: " << resolution_param_h << "x" << resolution_param_w << endl;
@@ -621,18 +625,25 @@ public:
 		this->state_of_game.drawSpriteStructBlocks();
 		this->state_of_game.drawSpriteStructBuff();
 		this->state_of_game.manageBallCollision(&scaled_size_ball_w, &scaled_size_ball_h, &resolution_w, &resolution_h);
+		this->state_of_game.manageBuffCollision();
 		this->state_of_game.manageBallSpeed();
 		this->state_of_game.manageBuffSpeed();
 		///Manage keys pressed-released
 		if (_init_time_key_left)
 		{
-			this->state_of_game.player.x_player -= 1;
-			this->state_of_game.player.x_max_player -= 1;
+			if (state_of_game.player.x_player >= 0)
+			{
+				this->state_of_game.player.x_player -= 1;
+				this->state_of_game.player.x_max_player -= 1;
+			}
 		}
 		if (_init_time_key_right)
 		{
-			this->state_of_game.player.x_player += 1;
-			this->state_of_game.player.x_max_player += 1;
+			if (state_of_game.player.x_max_player <= resolution_w)
+			{
+				this->state_of_game.player.x_player += 1;
+				this->state_of_game.player.x_max_player += 1;
+			}
 		}
 		/// Cleanup of "dead" blocks and spawn buffs in their place
 		this->state_of_game.removeBlock(0);

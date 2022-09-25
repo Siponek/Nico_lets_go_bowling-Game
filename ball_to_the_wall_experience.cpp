@@ -14,6 +14,8 @@
 #define block_collision_multiplier 0.9
 #define ghost_mode_duration 3000
 #define ghost_mode_interval 10000
+#define size_buff_duration 2000
+#define buff_effect 0.1
 
 
 using std::cin;
@@ -139,6 +141,7 @@ typedef struct BuffBlock
 	Sprite* buff_sprite;
 	int x, y, x_max, y_max, width, height, id_buff, y_direction, speed;
 	bool is_drawn;
+	bool positive;
 	int left() { return x; }
 	int right() { return x + width; }
 	int top() { return y; }
@@ -156,6 +159,7 @@ typedef struct BuffBlock
 		y_direction = 1;
 		speed = 0;
 		is_drawn = false;
+		positive = generateRandomBoolean();
 	}
 }BuffBlock;
 
@@ -176,22 +180,26 @@ public:
 	Sprite* backgroud_sprite;
 	unsigned int game_timer;
 	unsigned int ghost_mode_timer;
+	unsigned int buff_timer;
+	int player_default_size_w = 0, player_default_size_h = 0;
 	bool game_over;
 	bool ghost_mode;
-	
 	State()
 	{
 		player = Player();
+		player_default_size_w = 0;
+		player_default_size_h = 0;
 		ball_object = Ball();
 		backgroud_sprite = nullptr;
-		ball_object.x = 400;
-		ball_object.y = 700;
-		ball_object.radius = 0;
+		ball_object.radius = 2;
+		ball_object.x = resolution_w /2 + ball_object.radius;
+		ball_object.y = 650;
 		ball_object.speed = 1;
 		ball_object.x_direction = 0;
 		ball_object.y_direction = 0;
 		game_timer = 0;
 		ghost_mode_timer = 0;
+		buff_timer = 0;
 		game_over = false;
 		ghost_mode = false;
 	}
@@ -304,13 +312,53 @@ public:
 	/// Player collision with BuffBlock
 	void manageBuffCollision()
 	{
+		int tmp_int;
 		for (auto& temp_buff : this->list_of_buff_blocks)
 		{
+			//for (auto temp_block : this->list_of_blocks)
+			//{	
+			//	//if (temp_buff.bottom() >= temp_block.top() and temp_buff.left() >= temp_block.left() and temp_buff.right() <= temp_block.right())
+			//	if (temp_buff.bottom() >= temp_block.top() and temp_buff.left() <= temp_block.left() )
+			//	{
+			//	//cout << "This is the temp_buff.bottom()" << temp_buff.bottom() << "temp_block.top()" << temp_block.top() << endl;
+			//		temp_buff.speed = 2;
+			//	}
+			//	//else
+			//	//{
+			//	//	temp_buff.speed = 0;
+			//	//}
+			//}
+			for (auto temp_block : this->list_of_blocks)
+			{
+				if (isIntersectingNormal(temp_buff, temp_block))
+					temp_buff.speed = 0;
+				else
+					temp_buff.speed = 1;
+			}
+
 			if (isIntersectingNormal(temp_buff, this->player))
 			{
-				cout << "manageBuffCollision works!" << endl;
-				temp_buff.speed *= -2;
-				//temp_buff.is_drawn = false;
+					if (temp_buff.positive)
+					{
+						tmp_int = (this->player.x_max_player + this->player_default_size_w * buff_effect) - (this->player.x_player - this->player_default_size_w * buff_effect);
+						if (tmp_int <= this->player_default_size_w * 2)
+						{
+							this->player.x_player -= this->player_default_size_w * buff_effect;
+							this->player.x_max_player += this->player_default_size_w * buff_effect;
+						}
+					}
+					else
+					{
+						tmp_int = (this->player.x_max_player - this->player_default_size_w * buff_effect) - (this->player.x_player + this->player_default_size_w * buff_effect);
+						if (tmp_int >= this->player_default_size_w * 0.5)
+						{
+							this->player.x_player += this->player_default_size_w * buff_effect;
+							this->player.x_max_player -= this->player_default_size_w * buff_effect;
+						}
+					}
+						this->player.width = this->player.x_max_player - this->player.x_player;
+					setSpriteSize(this->player.player_sprite, this->player.width, this->player.height);
+				this->buff_timer = 0;
 			}
 		}
 	}
@@ -343,7 +391,7 @@ public:
 	{
 		for (auto& temp_buff : this->list_of_buff_blocks)
 		{
-			if (temp_buff.y >= edge_of_the_screen)
+			if (temp_buff.y >= edge_of_the_screen or temp_buff.y <= -10)
 			{
 				destroySprite(temp_buff.buff_sprite);
 			}
@@ -351,7 +399,7 @@ public:
 		this->list_of_buff_blocks.erase(remove_if(this->list_of_buff_blocks.begin(), this->list_of_buff_blocks.end(),
 			[&](const BuffBlock& temp_buff)
 			{
-				return temp_buff.y >= edge_of_the_screen;
+				return (temp_buff.y >= edge_of_the_screen or temp_buff.y <= -10);
 			}),
 			end(this->list_of_buff_blocks));
 	}
@@ -385,10 +433,9 @@ public:
 				{
 					if (temp_buff.id_buff == temp_struct_var.id_block)
 					{
-						cout << "ID: "<< temp_buff.id_buff<< "Block ID: " << temp_struct_var.id_block << " Buffs are drawn!" << endl;
-						
+						//cout << "ID: "<< temp_buff.id_buff<< "Block ID: " << temp_struct_var.id_block << " Buffs are drawn!" << endl;
 						temp_buff.is_drawn = true;
-						temp_buff.speed = 1;
+						//temp_buff.speed = 1;
 					}
 				}
 			}
@@ -585,8 +632,8 @@ public:
 		scaled_size_ball_w = size_ball_w / static_cast <float>(4) * resolution_param_w;
 		//Does not have to be round, but w/e
 		this->state_of_game.ball_object.radius = scaled_size_ball_w / 2;
-		this->state_of_game.ball_object.x = resolution_w / 2 - (size_player_w / 4) ;
-		this->state_of_game.ball_object.y = resolution_h - scaled_size_player_h - 20;
+		this->state_of_game.ball_object.x = resolution_w / 2 ;
+		this->state_of_game.ball_object.y = resolution_h - scaled_size_player_h - 30;
 		this->state_of_game.ball_object.x_direction = 0;
 		this->state_of_game.ball_object.y_direction = 0;
 		setSpriteSize(this->state_of_game.ball_object.ball_sprite, scaled_size_ball_w, scaled_size_ball_h);
@@ -594,12 +641,15 @@ public:
 		/// <summary>
 		/// Player
 		/// </summary>
-		this->state_of_game.player.x_player = resolution_w / 2 - (size_player_w / 4);
+		this->state_of_game.player.x_player = resolution_w / 2 - (size_player_w / 8);
 		this->state_of_game.player.y_player = resolution_h - scaled_size_player_h;
 		this->state_of_game.player.width = scaled_size_player_w;
 		this->state_of_game.player.height = scaled_size_player_h;
 		this->state_of_game.player.x_max_player = this->state_of_game.player.x_player + this->state_of_game.player.width;
 		this->state_of_game.player.y_max_player = this->state_of_game.player.y_player + this->state_of_game.player.height;
+		this->state_of_game.player_default_size_w = this->state_of_game.player.width;
+		this->state_of_game.player_default_size_h = this->state_of_game.player.height;
+
 		setSpriteSize(this->state_of_game.player.player_sprite, scaled_size_player_w, scaled_size_player_h);
 		cout << "Current resolution is: " << resolution_h << "x" << resolution_w << endl;
 		cout << "Resolution scale is: " << resolution_param_h << "x" << resolution_param_w << endl;
@@ -607,12 +657,6 @@ public:
 		this->state_of_game.game_over = false;
 		return true;
 	}
-
-	virtual void Close()
-	{
-		cout << "Close function called, bye bye" << endl;
-	}
-
 	//Tick each moment - need to re-draw everything per frame
 	virtual bool Tick()
 	{
@@ -649,6 +693,14 @@ public:
 		this->state_of_game.removeBlock(0);
 		this->state_of_game.removeBuffBlocks(resolution_w);
 		this->state_of_game.victory();
+		if (this->state_of_game.buff_timer >= size_buff_duration)
+		{
+			this->state_of_game.buff_timer = 0;
+			this->state_of_game.player.width = this->state_of_game.player_default_size_w;
+			this->state_of_game.player.x_max_player = this->state_of_game.player.x_player + this->state_of_game.player.width;
+			setSpriteSize(this->state_of_game.player.player_sprite, this->state_of_game.player.width, this->state_of_game.player.height);
+		}
+		
 		if (this->state_of_game.game_over)
 		{
 			/// Memory CLEANUP
@@ -693,6 +745,7 @@ public:
 				cout << "Ghost mode deactivated" << endl;
 			}
 		}
+		this->state_of_game.buff_timer++;
 		this->state_of_game.game_timer++;
 		
 		return false;
@@ -759,6 +812,11 @@ public:
 	{
 		//cout << "GetTitle function called" << endl;
 		return "Arcanoid fucking sucks";
+	}
+	
+	virtual void Close()
+	{
+		cout << "Close function called, bye bye" << endl;
 	}
 };
 //TODO implement waiting

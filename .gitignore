@@ -429,3 +429,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+Framework.h
+x64/**
+.vs/**

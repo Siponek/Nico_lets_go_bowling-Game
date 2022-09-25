@@ -316,19 +316,7 @@ public:
 		int tmp_int;
 		for (auto& temp_buff : this->list_of_buff_blocks)
 		{
-			//for (auto temp_block : this->list_of_blocks)
-			//{	
-			//	//if (temp_buff.bottom() >= temp_block.top() and temp_buff.left() >= temp_block.left() and temp_buff.right() <= temp_block.right())
-			//	if (temp_buff.bottom() >= temp_block.top() and temp_buff.left() <= temp_block.left() )
-			//	{
-			//	//cout << "This is the temp_buff.bottom()" << temp_buff.bottom() << "temp_block.top()" << temp_block.top() << endl;
-			//		temp_buff.speed = 2;
-			//	}
-			//	//else
-			//	//{
-			//	//	temp_buff.speed = 0;
-			//	//}
-			//}
+
 			for (auto& temp_block : this->list_of_blocks)
 			{
 				if (temp_buff.left() <= temp_block.right() and temp_buff.right() >= temp_block.left())
@@ -343,14 +331,6 @@ public:
 				{
 					continue;
 				}
-				//if (temp_buff.bottom() >= temp_block.top() and temp_buff.left() >= temp_block.left() and temp_buff.right() <= temp_block.right())
-				//	temp_buff.speed = 0;
-				//else
-				//	temp_buff.speed = 1;
-				//if (isIntersectingNormal(temp_buff, temp_block))
-				//	temp_buff.speed = 0;
-				//else
-				//	temp_buff.speed = 2;
 			}
 			if (isIntersectingNormal(temp_buff, this->player))
 			{
@@ -451,7 +431,6 @@ public:
 					{
 						//cout << "ID: "<< temp_buff.id_buff<< "Block ID: " << temp_struct_var.id_block << " Buffs are drawn!" << endl;
 						temp_buff.is_drawn = true;
-						//temp_buff.speed = 1;
 					}
 				}
 			}
@@ -740,8 +719,6 @@ public:
 			destroySprite(this->state_of_game.backgroud_sprite);
 			this->state_of_game.list_of_blocks.clear();
 			this->state_of_game.list_of_buff_blocks.clear();
-			//this->this->state_of_game.list_of_blocks.clear();
-			//this->this->state_of_game.list_of_buff_blocks.clear();
 				
 			this->Init();
 		}
@@ -783,8 +760,6 @@ public:
 			if (this->state_of_game.ball_object.y_direction >= 0)
 				this->state_of_game.ball_object.y_direction = -1;
 			this->state_of_game.ball_object.speed = int(sqrt(pow(this->state_of_game.ball_object.x_direction, 2) + pow(this->state_of_game.ball_object.y_direction, 2)));
-		//cout << "Launch speed is: " << state_of_game.ball_object.speed<< endl;
-		//cout << "Direction XY : " << state_of_game.ball_object.x_direction << "," << state_of_game.ball_object.y_direction << endl;
 		_init_time_mouse = false;
 		}
 	}
@@ -826,8 +801,7 @@ public:
 
 	virtual const char *GetTitle() override
 	{
-		//cout << "GetTitle function called" << endl;
-		return "Arcanoid fucking sucks";
+		return "Arcanoid - Fighting Visual Studio Edition";
 	}
 	
 	virtual void Close()
